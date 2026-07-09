@@ -71,7 +71,6 @@ const JVB = (() => {
         <div class="jvb-row-body">
           <div class="jvb-columns-grid" data-ri="${ri}">`;
       row.columns.forEach((col, ci) => {
-        const colWidth = col.width || 12;
         rowEl.querySelector('.jvb-columns-grid').appendChild(renderColumn(col, ri, ci));
       });
       rowEl.querySelector('.jvb-columns-grid').innerHTML += '</div></div>';
