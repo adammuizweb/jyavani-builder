@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e94560" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="8" fill="#0f3460"/>
+  <rect x="8" y="10" width="48" height="6" rx="2" fill="#e94560"/>
+  <rect x="8" y="22" width="22" height="18" rx="2" fill="#1a1a2e" stroke="#e94560" stroke-width="1.5"/>
+  <rect x="34" y="22" width="22" height="8" rx="2" fill="#1a1a2e" stroke="#e94560" stroke-width="1.5"/>
+  <rect x="34" y="34" width="22" height="6" rx="2" fill="#1a1a2e" stroke="#e94560" stroke-width="1.5"/>
+  <rect x="8" y="46" width="48" height="8" rx="2" fill="#1a1a2e" stroke="#e94560" stroke-width="1.5"/>
+  <circle cx="14" cy="13" r="1.5" fill="#fff"/>
+  <circle cx="18" cy="13" r="1.5" fill="#fff"/>
+  <circle cx="22" cy="13" r="1.5" fill="#fff"/>
+</svg>
