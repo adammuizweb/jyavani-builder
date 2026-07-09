@@ -105,7 +105,7 @@ const JVB = (() => {
 
     colEl.innerHTML = `
       <div class="jvb-col-header">
-        <span>${colWidth}/12</span>
+        <span>${col.width || 12}/12</span>
         <div class="jvb-col-actions">
           <button onclick="JVB.selectCol(${ri},${ci})" title="Settings">⚙</button>
           <button onclick="JVB.splitColumn(${ri},${ci})" title="Split">⇄</button>
