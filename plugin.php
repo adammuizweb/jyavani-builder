@@ -1,8 +1,6 @@
 <?php
 declare(strict_types=1);
 
-defined('DASHBOARD_CONTEXT') || exit;
-
 // ── Frontend Renderer ──────────────────────────────────────────────
 
 $GLOBALS['_jvb_rendered'] = false;
