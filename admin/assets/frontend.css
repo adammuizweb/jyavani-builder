@@ -1,0 +1,64 @@
+/* ── Jyavani Builder Frontend Styles ── */
+
+.jyavani-builder-layout { width:100%; }
+
+/* ── Row ── */
+.jvb-row { width:100%; }
+.jvb-row-inner { display:flex;flex-wrap:wrap;max-width:1200px;margin:0 auto; }
+.jvb-row-full .jvb-row-inner { max-width:100%; }
+
+/* ── Column ── */
+.jvb-col { flex:1;min-height:1px;box-sizing:border-box; }
+
+/* Width variants */
+.jvb-col-1  { flex:0 0 8.3333%;max-width:8.3333%; }
+.jvb-col-2  { flex:0 0 16.6667%;max-width:16.6667%; }
+.jvb-col-3  { flex:0 0 25%;max-width:25%; }
+.jvb-col-4  { flex:0 0 33.3333%;max-width:33.3333%; }
+.jvb-col-5  { flex:0 0 41.6667%;max-width:41.6667%; }
+.jvb-col-6  { flex:0 0 50%;max-width:50%; }
+.jvb-col-7  { flex:0 0 58.3333%;max-width:58.3333%; }
+.jvb-col-8  { flex:0 0 66.6667%;max-width:66.6667%; }
+.jvb-col-9  { flex:0 0 75%;max-width:75%; }
+.jvb-col-10 { flex:0 0 83.3333%;max-width:83.3333%; }
+.jvb-col-11 { flex:0 0 91.6667%;max-width:91.6667%; }
+.jvb-col-12 { flex:0 0 100%;max-width:100%; }
+
+.jvb-col-inner { width:100%; }
+
+/* ── Element alignment ── */
+.jvb-align-left   { text-align:left; }
+.jvb-align-center { text-align:center; }
+.jvb-align-right  { text-align:right; }
+
+/* ── Image ── */
+.jvb-el-image img { max-width:100%;height:auto;display:inline-block; }
+.jvb-image-caption { font-size:.85em;color:#666;margin-top:4px; }
+
+/* ── Button ── */
+.jvb-btn { display:inline-block;text-decoration:none;border-radius:4px;cursor:pointer;transition:all .2s; }
+.jvb-btn-sm { padding:6px 14px;font-size:13px; }
+.jvb-btn-md { padding:10px 22px;font-size:15px; }
+.jvb-btn-lg { padding:14px 32px;font-size:17px; }
+.jvb-btn-solid { background:#e94560;color:#fff;border:2px solid #e94560; }
+.jvb-btn-solid:hover { background:#d63851;border-color:#d63851; }
+.jvb-btn-outline { background:transparent;color:#e94560;border:2px solid #e94560; }
+.jvb-btn-outline:hover { background:#e94560;color:#fff; }
+.jvb-btn-ghost { background:transparent;color:#e94560;border:2px solid transparent; }
+.jvb-btn-ghost:hover { background:rgba(233,69,96,.08); }
+
+/* ── Divider ── */
+.jvb-divider { border:0;border-top:1px solid #ddd;margin:0; }
+
+/* ── Spacer ── */
+.jvb-el-spacer { pointer-events:none; }
+
+/* ── Video ── */
+.jvb-video-embed { position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:4px; }
+.jvb-video-embed iframe { position:absolute;top:0;left:0;width:100%;height:100%; }
+
+/* ── Mobile ── */
+@media (max-width:768px) {
+  .jvb-row-inner { flex-direction:column; }
+  .jvb-col { flex:0 0 100% !important;max-width:100% !important; }
+}

@@ -1,0 +1,50 @@
+{
+  "name": "jyavani-builder",
+  "version": "1.0.0",
+  "title": "Jyavani Page Builder",
+  "icon": "icon.svg",
+  "description": "Drag-and-drop page builder dengan rows, columns, heading, text, image, button, video, spacer, divider, HTML, shortcode. Layout disimpan di post meta dan dirender di frontend.",
+  "author": "Adam Muiz",
+  "author_uri": "https://adammuiz.com",
+  "plugin_uri": "https://jyavani.com/plugin-store/jyavani-builder",
+  "homepage": "https://jyavani.com",
+  "store": {
+    "id": 0,
+    "url": "https://jyavani.com/plugin-store/",
+    "slug": "jyavani-builder"
+  },
+  "requires": {
+    "php": ">=8.1",
+    "extensions": ["pdo", "json"]
+  },
+  "admin": {
+    "pages": [
+      {
+        "route": "admin/tools/jyavani-builder",
+        "file": "admin/index.php",
+        "title": "Jyavani Builder",
+        "roles": ["editor", "admin"]
+      }
+    ],
+    "nav": [
+      {
+        "label": "Page Builder",
+        "page": "admin/tools/jyavani-builder",
+        "icon": "puzzle",
+        "parent": "tools",
+        "roles": ["editor", "admin"]
+      }
+    ]
+  },
+  "static": {
+    "copy": [
+      {"from": "admin/assets/builder.css", "to": "static/vendor/jyavani-builder/builder.css"},
+      {"from": "admin/assets/builder.js", "to": "static/vendor/jyavani-builder/builder.js"},
+      {"from": "admin/assets/frontend.css", "to": "static/vendor/jyavani-builder/frontend.css"}
+    ]
+  },
+  "assets": {
+    "css": [],
+    "js": []
+  }
+}
