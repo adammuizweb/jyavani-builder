@@ -306,7 +306,7 @@ add_action('wp_head', function(): void {
     echo '<link rel="stylesheet" href="/static/vendor/jyavani-builder/frontend.css">' . "\n";
 });
 
-add_filter('admin_head', function(): void {
+add_action('admin_head', function(): void {
     $route = $_GET['page'] ?? '';
     if ($route !== 'admin/tools/jyavani-builder') return;
     global $pdo;
