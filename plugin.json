@@ -1,6 +1,6 @@
 {
   "name": "jyavani-builder",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "Jyavani Page Builder",
   "icon": "icon.svg",
   "description": "Drag-and-drop page builder dengan rows, columns, heading, text, image, button, video, spacer, divider, HTML, shortcode. Layout disimpan di post meta dan dirender di frontend.",
