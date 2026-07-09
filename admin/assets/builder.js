@@ -20,6 +20,9 @@ const JVB = (() => {
     video:    { src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', aspect_ratio: '16/9', class: '' },
     html:     { html: '<div>Your custom HTML here</div>', class: '' },
     shortcode: { shortcode: '[post_cat_shortcode category="news" layout="cards" limit="3"]', class: '' },
+    paragraph: { content: '<p>Write your paragraph here.</p>', class: '', margin: '' },
+    css:      { code: '/* CSS code here */', class: '' },
+    script:   { code: '// JavaScript code here', class: '' },
   };
 
   function createElement(type) {
@@ -239,9 +242,43 @@ const JVB = (() => {
         html = `
           <div class="jvb-setting-group"><label>Video URL (YouTube/Vimeo)</label><input type="text" value="${s.src || ''}" data-key="src" oninput="JVB.updateElSetting(this.dataset.key,this.value)"></div>
           <div class="jvb-setting-group"><label>Aspect Ratio (e.g. 16/9)</label><input type="text" value="${s.aspect_ratio || '16/9'}" data-key="aspect_ratio" oninput="JVB.updateElSetting(this.dataset.key,this.value)"></div>` + html;
+      } else if (t === 'paragraph') {
+        html = `
+          <div class="jvb-setting-group">
+            <label>Content</label>
+            <textarea data-key="content" oninput="JVB.updateElSetting(this.dataset.key,this.value)" style="min-height:100px">${s.content || ''}</textarea>
+          </div>
+          <div class="jvb-setting-group">
+            <button class="jvb-btn jvb-btn-primary jvb-btn-block" onclick="JVB.openQuillEditor('content', (JVB._qSel=JVB._qSel||getSelectedTarget()).target.settings.content, function(v){ var t=JVB._qSel||getSelectedTarget(); t.target.settings.content=v; JVB.updateElSetting('content',v); JVB._qSel=null; })">✎ Edit with Quill</button>
+          </div>
+          <div class="jvb-setting-group"><label>Margin</label><input type="text" value="${s.margin || ''}" data-key="margin" oninput="JVB.updateElSetting(this.dataset.key,this.value)"></div>` + html;
+      } else if (t === 'css') {
+        html = `
+          <div class="jvb-setting-group">
+            <label>CSS Code</label>
+            <textarea data-key="code" oninput="JVB.updateElSetting(this.dataset.key,this.value)" style="min-height:120px;font-family:monospace">${s.code || ''}</textarea>
+          </div>
+          <div class="jvb-setting-group">
+            <button class="jvb-btn jvb-btn-primary jvb-btn-block" onclick="JVB.openCodeMirrorEditor('code', (JVB._cmSel=JVB._cmSel||getSelectedTarget()).target.settings.code, 'css', function(v){ var t=JVB._cmSel||getSelectedTarget(); t.target.settings.code=v; JVB.updateElSetting('code',v); JVB._cmSel=null; })">✎ Edit with CodeMirror</button>
+          </div>` + html;
+      } else if (t === 'script') {
+        html = `
+          <div class="jvb-setting-group">
+            <label>JavaScript Code</label>
+            <textarea data-key="code" oninput="JVB.updateElSetting(this.dataset.key,this.value)" style="min-height:120px;font-family:monospace">${s.code || ''}</textarea>
+          </div>
+          <div class="jvb-setting-group">
+            <button class="jvb-btn jvb-btn-primary jvb-btn-block" onclick="JVB.openCodeMirrorEditor('code', (JVB._cmSel=JVB._cmSel||getSelectedTarget()).target.settings.code, 'javascript', function(v){ var t=JVB._cmSel||getSelectedTarget(); t.target.settings.code=v; JVB.updateElSetting('code',v); JVB._cmSel=null; })">✎ Edit with CodeMirror</button>
+          </div>` + html;
       } else if (t === 'html') {
         html = `
-          <div class="jvb-setting-group"><label>HTML</label><textarea data-key="html" oninput="JVB.updateElSetting(this.dataset.key,this.value)" style="min-height:150px;font-family:monospace">${s.html || ''}</textarea></div>` + html;
+          <div class="jvb-setting-group">
+            <label>HTML</label>
+            <textarea data-key="html" oninput="JVB.updateElSetting(this.dataset.key,this.value)" style="min-height:150px;font-family:monospace">${s.html || ''}</textarea>
+          </div>
+          <div class="jvb-setting-group">
+            <button class="jvb-btn jvb-btn-primary jvb-btn-block" onclick="JVB.openCodeMirrorEditor('html', (JVB._cmSel=JVB._cmSel||getSelectedTarget()).target.settings.html, 'htmlmixed', function(v){ var t=JVB._cmSel||getSelectedTarget(); t.target.settings.html=v; JVB.updateElSetting('html',v); JVB._cmSel=null; })">✎ Edit with CodeMirror</button>
+          </div>` + html;
       } else if (t === 'shortcode') {
         html = `
           <div class="jvb-setting-group"><label>Shortcode</label><textarea data-key="shortcode" oninput="JVB.updateElSetting(this.dataset.key,this.value)" style="min-height:80px;font-family:monospace">${s.shortcode || ''}</textarea></div>` + html;
@@ -260,6 +297,114 @@ const JVB = (() => {
     if (type === 'col') return { target: state.rows[index].columns[colIndex], path: ['rows', index, 'columns', colIndex] };
     if (type === 'el') return { target: state.rows[index].columns[colIndex].elements[elIndex], path: ['rows', index, 'columns', colIndex, 'elements', elIndex] };
     return null;
+  }
+
+  function countElements(rows) {
+    let n = 0;
+    for (const r of rows) for (const c of r.columns) n += c.elements.length;
+    return n;
+  }
+
+  // ── HTML Parser (import existing content) ──
+
+  function parseHtmlToLayout(html) {
+    if (!html || !html.trim()) return null;
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const nodes = Array.from(doc.body.childNodes);
+    const elements = [];
+    let complexBuffer = '';
+
+    function flushComplex() {
+      if (!complexBuffer.trim()) return;
+      elements.push({ type: 'html', settings: { html: complexBuffer.trim(), class: '' } });
+      complexBuffer = '';
+    }
+
+    for (const node of nodes) {
+      if (node.nodeType === 3) {
+        const text = node.textContent.trim();
+        if (text) { complexBuffer += text; }
+        continue;
+      }
+      if (node.nodeType !== 1) { complexBuffer += node.outerHTML || ''; continue; }
+
+      const tag = node.tagName.toLowerCase();
+
+      if (tag === 'p') {
+        flushComplex();
+        elements.push({ type: 'paragraph', settings: { content: node.innerHTML, class: '', margin: '' } });
+      } else if (['h1','h2','h3','h4','h5','h6'].includes(tag)) {
+        flushComplex();
+        elements.push({ type: 'heading', settings: { text: node.textContent, tag, align: 'left', class: '', text_color: '', margin: '' } });
+      } else if (tag === 'img') {
+        flushComplex();
+        elements.push({ type: 'image', settings: { src: node.getAttribute('src') || '', alt: node.getAttribute('alt') || '', caption: '', link: '', class: '', align: 'left' } });
+      } else if (tag === 'hr') {
+        flushComplex();
+        elements.push({ type: 'divider', settings: { width: '100%', class: '' } });
+      } else if (tag === 'iframe') {
+        flushComplex();
+        elements.push({ type: 'video', settings: { src: node.getAttribute('src') || '', aspect_ratio: '16/9', class: '' } });
+      } else if (['script','style'].includes(tag)) {
+        const typeAttr = tag === 'script' ? (node.getAttribute('type') || 'text/javascript') : '';
+        const code = node.textContent;
+        if (tag === 'style') {
+          elements.push({ type: 'css', settings: { code, class: '' } });
+        } else {
+          elements.push({ type: 'script', settings: { code, class: '' } });
+        }
+      } else {
+        complexBuffer += node.outerHTML || '';
+      }
+    }
+    flushComplex();
+
+    if (elements.length === 0) return null;
+
+    return {
+      rows: [{
+        id: uid(),
+        settings: { class: '', bg_color: '', text_color: '', padding: '16px', margin: '', full_width: false, bg_image: '' },
+        columns: [{
+          id: uid(), width: 12,
+          settings: { class: '', bg_color: '', padding: '8px', text_align: '' },
+          elements,
+        }]
+      }]
+    };
+  }
+
+  // ── Overlay Editors (Quill / CodeMirror) ──
+
+  let _overlayQuill = null;
+  let _overlayCM = null;
+  let _overlayTarget = null; // { key, onSave }
+
+  function closeOverlay() {
+    const el = document.getElementById('jvb-editor-overlay');
+    if (el) el.remove();
+    if (_overlayQuill) { try { _overlayQuill = null; } catch(e) {} }
+    _overlayCM = null;
+    _overlayTarget = null;
+  }
+
+  function buildOverlay(title) {
+    closeOverlay();
+    const div = document.createElement('div');
+    div.id = 'jvb-editor-overlay';
+    div.className = 'jvb-editor-overlay';
+    div.innerHTML = `<div class="jvb-editor-overlay-inner">
+      <div class="jvb-editor-overlay-header">
+        <span class="jvb-editor-overlay-title">${title}</span>
+        <div class="jvb-editor-overlay-actions">
+          <button class="jvb-btn" onclick="JVB._closeEditorOverlay()">Cancel</button>
+          <button class="jvb-btn jvb-btn-primary" onclick="JVB._saveEditorOverlay()">Save</button>
+        </div>
+      </div>
+      <div class="jvb-editor-overlay-body" id="jvb-editor-overlay-body"></div>
+    </div>`;
+    document.body.appendChild(div);
+    return div;
   }
 
   // ── Public API ──
@@ -441,6 +586,102 @@ const JVB = (() => {
       state.rows = [];
       this.closeSettings();
       render();
+    },
+
+    // ── Import Existing Content ──
+
+    importContent() {
+      const postId = document.getElementById('jvb-post-select').value;
+      if (!postId) { alert('Select a post/page first.'); return; }
+      const adminPath = window.JVB_ADMIN_PATH || '';
+      fetch(window.location.pathname + '?page=admin/tools/jyavani-builder&action=jyavani_builder_import&post_id=' + postId)
+        .then(r => r.json())
+        .then(res => {
+          if (!res.success) { alert(res.message); return; }
+          if (!res.content || !res.content.trim()) { alert('This post has no content to import.'); return; }
+          const layout = parseHtmlToLayout(res.content);
+          if (!layout) { alert('Could not parse content into layout.'); return; }
+          if (state.rows.length > 0) {
+            if (!confirm('This will replace your current layout. Continue?')) return;
+          }
+          state.rows = layout.rows;
+          this.closeSettings();
+          render();
+          alert('Content imported! ' + countElements(state.rows) + ' elements created.');
+        })
+        .catch(err => { alert('Failed to import: ' + err.message); });
+    },
+
+    // ── Overlay Editors ──
+
+    _closeEditorOverlay() { closeOverlay(); },
+
+    _saveEditorOverlay() {
+      if (!_overlayTarget) return;
+      let val = '';
+      if (_overlayQuill) {
+        val = _overlayQuill.root.innerHTML;
+      } else if (_overlayCM) {
+        val = _overlayCM.getValue();
+      }
+      _overlayTarget.onSave(val);
+      closeOverlay();
+    },
+
+    openQuillEditor(key, initialContent, onSave) {
+      buildOverlay('Edit Content — Quill Editor');
+      const body = document.getElementById('jvb-editor-overlay-body');
+      const editorDiv = document.createElement('div');
+      editorDiv.id = 'jvb-quill-editor';
+      body.appendChild(editorDiv);
+
+      _overlayQuill = new Quill('#jvb-quill-editor', {
+        modules: {
+          toolbar: [
+            [{ header: [1,2,3,4,5,6,false] }],
+            ['bold','italic','underline','strike'],
+            [{ color: [] }, { background: [] }],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            [{ indent: '-1' }, { indent: '+1' }],
+            [{ align: [] }],
+            ['blockquote','code-block'],
+            ['link','image'],
+            [{ size: ['small', false, 'large', 'huge'] }],
+            ['clean']
+          ]
+        },
+        theme: 'snow',
+        placeholder: 'Write content here...'
+      });
+      _overlayQuill.root.innerHTML = initialContent || '';
+      _overlayTarget = { key, onSave };
+    },
+
+    openCodeMirrorEditor(key, initialContent, mode, onSave) {
+      buildOverlay('Edit Code — ' + mode.toUpperCase());
+      const body = document.getElementById('jvb-editor-overlay-body');
+      const ta = document.createElement('textarea');
+      ta.id = 'jvb-cm-textarea';
+      body.appendChild(ta);
+
+      // Init after DOM attach
+      requestAnimationFrame(() => {
+        _overlayCM = CodeMirror.fromTextArea(ta, {
+          mode: mode || 'htmlmixed',
+          lineNumbers: true,
+          styleActiveLine: true,
+          matchBrackets: true,
+          autoCloseBrackets: true,
+          indentUnit: 2,
+          lineWrapping: true,
+          viewportMargin: Infinity,
+          theme: 'dracula',
+        });
+        _overlayCM.setSize('100%', '100%');
+        _overlayCM.setValue(initialContent || '');
+        _overlayCM.refresh();
+      });
+      _overlayTarget = { key, onSave: onSave || (() => {}) };
     },
 
     // ── Load/Save ──

@@ -83,6 +83,17 @@
 .jvb-color-input-wrap input[type="color"] { width:36px;flex-shrink:0; }
 .jvb-color-input-wrap input[type="text"] { flex:1; }
 
+/* ── Overlay Editor (Quill / CodeMirror) ── */
+.jvb-editor-overlay { position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center; }
+.jvb-editor-overlay-inner { display:flex;flex-direction:column;width:90vw;height:85vh;background:var(--adam-card);border-radius:var(--adam-radius-lg);box-shadow:var(--adam-shadow);overflow:hidden; }
+.jvb-editor-overlay-header { display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--adam-border);background:var(--adam-surface-3); }
+.jvb-editor-overlay-title { font-size:16px;font-weight:600;color:var(--adam-text); }
+.jvb-editor-overlay-actions { display:flex;gap:8px; }
+.jvb-editor-overlay-body { flex:1;overflow:hidden;padding:0; }
+#jvb-editor-overlay-body .ql-container.ql-snow { height:calc(85vh - 110px); }
+#jvb-editor-overlay-body .ql-editor { min-height:300px;font-size:15px;line-height:1.7;padding:20px;color:var(--adam-text); }
+#jvb-editor-overlay-body .CodeMirror { height:100% !important; }
+
 /* ── Responsive tweaks ── */
 @media (max-width:1024px) {
   .jvb-palette { width:180px; }

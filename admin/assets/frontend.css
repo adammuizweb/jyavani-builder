@@ -53,6 +53,10 @@
 /* ── Spacer ── */
 .jvb-el-spacer { pointer-events:none; }
 
+/* ── Paragraph ── */
+.jvb-el-paragraph p { margin:0 0 1em; }
+.jvb-el-paragraph p:last-child { margin-bottom:0; }
+
 /* ── Video ── */
 .jvb-video-embed { position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:4px; }
 .jvb-video-embed iframe { position:absolute;top:0;left:0;width:100%;height:100%; }

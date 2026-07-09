@@ -10,6 +10,7 @@
     </div>
     <div class="jvb-toolbar-right">
       <button id="jvb-btn-save" class="jvb-btn jvb-btn-primary" onclick="JVB.save()">Save Layout</button>
+      <button id="jvb-btn-import" class="jvb-btn" onclick="JVB.importContent()">Import Content</button>
       <button id="jvb-btn-preview" class="jvb-btn" onclick="JVB.preview()">Preview</button>
     </div>
   </div>
@@ -53,6 +54,18 @@
         <div class="jvb-palette-item" data-type="shortcode" draggable="true">
           <span class="jvb-palette-icon">[ ]</span>
           <span>Shortcode</span>
+        </div>
+        <div class="jvb-palette-item" data-type="paragraph" draggable="true">
+          <span class="jvb-palette-icon">¶</span>
+          <span>Paragraph</span>
+        </div>
+        <div class="jvb-palette-item" data-type="css" draggable="true">
+          <span class="jvb-palette-icon">#</span>
+          <span>CSS</span>
+        </div>
+        <div class="jvb-palette-item" data-type="script" draggable="true">
+          <span class="jvb-palette-icon">&lt;/&gt;</span>
+          <span>Script</span>
         </div>
       </div>
 

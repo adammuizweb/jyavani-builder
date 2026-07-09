@@ -162,6 +162,18 @@ function render_builder_element(array $el): string {
             if (empty($sc)) return '';
             return '<div class="' . $elCls . '"' . $elAttr . '>' . do_builder_shortcode($sc) . '</div>';
 
+        case 'paragraph':
+            $content = (string)($settings['content'] ?? '');
+            return '<div class="' . $elCls . '"' . $elAttr . '>' . $content . '</div>';
+
+        case 'css':
+            $code = (string)($settings['code'] ?? '');
+            return '<style class="' . $elCls . '"' . $elAttr . '>' . $code . '</style>';
+
+        case 'script':
+            $code = (string)($settings['code'] ?? '');
+            return '<script class="' . $elCls . '"' . $elAttr . '>' . $code . '</script>';
+
         case 'html':
             return '<div class="' . $elCls . '"' . $elAttr . '>' . (string)($settings['html'] ?? '') . '</div>';
 
@@ -295,6 +307,45 @@ add_action('admin_init', function(): void {
         'success' => true,
         'post'    => ['id' => $post['id'], 'title' => $post['title'], 'slug' => $post['slug'], 'type' => $post['type']],
         'data'    => $builderData,
+    ]);
+    exit;
+});
+
+add_action('admin_init', function(): void {
+    $route = $_GET['page'] ?? '';
+    if ($route !== 'admin/tools/jyavani-builder') return;
+
+    $action = $_GET['action'] ?? '';
+    if ($action !== 'jyavani_builder_import') return;
+
+    $postId = (int)($_GET['post_id'] ?? 0);
+    if ($postId < 1) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Invalid post ID']);
+        exit;
+    }
+
+    global $pdo;
+    if (!$pdo instanceof PDO) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'No DB connection']);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("SELECT id, title, content FROM posts WHERE id = :id AND is_deleted = 0 LIMIT 1");
+    $stmt->execute([':id' => $postId]);
+    $post = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$post) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Post not found']);
+        exit;
+    }
+
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => true,
+        'post'    => ['id' => $post['id'], 'title' => $post['title']],
+        'content' => $post['content'],
     ]);
     exit;
 });
