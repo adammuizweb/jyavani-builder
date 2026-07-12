@@ -394,7 +394,9 @@ function jvb_ui_icon(string $name, int $size = 16): string {
         $cache[$name] = $svg;
     }
     if ($cache[$name] === '') return '';
-    return str_replace('<svg', '<svg class="jvb-ic" width="' . $size . '" height="' . $size . '"', $cache[$name]);
+    $svg = $cache[$name];
+    $svg = (string)preg_replace('/\sclass="[^"]*"/', '', $svg, 1);
+    return str_replace('<svg', '<svg class="jvb-ic" width="' . $size . '" height="' . $size . '"', $svg);
 }
 
 // Icon map for JS chrome (builder + frame), keyed by name → inline SVG.
