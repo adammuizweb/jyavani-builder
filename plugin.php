@@ -5,7 +5,7 @@ declare(strict_types=1);
 // Loaded on every request (admin + frontend) via plugin_load_active(). No context guard here —
 // guards belong in the admin page files.
 
-const JVB_VERSION = '2.0.0';
+const JVB_VERSION = '2.1.0';
 const JVB_LAYOUT_VERSION = 2;
 const JVB_SETTINGS_TOKENS_KEY = 'jvb_design_tokens';
 const JVB_MAX_REVISIONS = 20;
@@ -381,6 +381,29 @@ require_once __DIR__ . '/public/starters.php';
 // Track whether any layout was rendered this request (for footer assets).
 function jvb_mark_rendered(): void { $GLOBALS['_jvb_any_rendered'] = true; }
 
+// Inline UI icon (Lucide, ISC) from the plugin's bundled set — no emoji, no
+// external requests, works on any site regardless of the core icon set.
+function jvb_ui_icon(string $name, int $size = 16): string {
+    static $cache = [];
+    $name = preg_replace('/[^a-z0-9-]/', '', $name);
+    if (!isset($cache[$name])) {
+        $file = __DIR__ . '/assets/icons/' . $name . '.svg';
+        $svg = is_file($file) ? (string)file_get_contents($file) : '';
+        $svg = trim((string)preg_replace('/<!--.*?-->/s', '', $svg));
+        $svg = (string)preg_replace('/\s(width|height)="[^"]*"/', '', $svg);
+        $cache[$name] = $svg;
+    }
+    if ($cache[$name] === '') return '';
+    return str_replace('<svg', '<svg class="jvb-ic" width="' . $size . '" height="' . $size . '"', $cache[$name]);
+}
+
+// Icon map for JS chrome (builder + frame), keyed by name → inline SVG.
+function jvb_ui_icons_js(array $names): array {
+    $out = [];
+    foreach ($names as $n) $out[$n] = jvb_ui_icon($n);
+    return $out;
+}
+
 add_filter('post_content', function (string $html, array $post = []): string {
     $postId = (int)($post['id'] ?? 0);
     if ($postId <= 0) return $html;
@@ -406,7 +429,7 @@ add_filter('post_content', function (string $html, array $post = []): string {
     jvb_mark_rendered();
     $out = jvb_render_layout($pdo, $layout, $post);
     if ($which === 'draft') {
-        $out = '<div class="jvb-preview-bar">⚠ Draft preview — <a href="?">exit preview</a></div>' . $out;
+        $out = '<div class="jvb-preview-bar">' . jvb_ui_icon('alert-triangle') . ' Draft preview — <a href="?">exit preview</a></div>' . $out;
     }
     return $out;
 }, 5);
@@ -457,7 +480,7 @@ add_filter('layout_slot_html', function (string $html, string $slot = '', array 
     jvb_mark_rendered();
     $out = jvb_render_layout($pdo, $layout, $post);
     if ($which === 'draft') {
-        $out = '<div class="jvb-preview-bar">⚠ Draft preview — <a href="?">exit preview</a></div>' . $out;
+        $out = '<div class="jvb-preview-bar">' . jvb_ui_icon('alert-triangle') . ' Draft preview — <a href="?">exit preview</a></div>' . $out;
     }
     return $out;
 }, 5);

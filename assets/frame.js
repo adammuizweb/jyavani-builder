@@ -33,23 +33,24 @@
       node.insertBefore(chip, node.firstChild);
 
       var kind = kindOf(node);
+      var ICONS = (window.JVB_FRAME && window.JVB_FRAME.icons) || {};
       if (kind === 'section') {
         var tools = document.createElement('div');
         tools.className = 'jvb-sec-tools';
         tools.innerHTML =
-          '<button data-act="settings" title="Settings">⚙</button>' +
-          '<button data-act="up" title="Move up">↑</button>' +
-          '<button data-act="down" title="Move down">↓</button>' +
-          '<button data-act="dup" title="Duplicate">⧉</button>' +
-          '<button data-act="tpl" title="Save as template">💾</button>' +
-          '<button data-act="del" title="Delete" class="danger">✕</button>';
+          '<button data-act="settings" title="Settings">' + (ICONS['settings'] || 'S') + '</button>' +
+          '<button data-act="up" title="Move up">' + (ICONS['arrow-up'] || '↑') + '</button>' +
+          '<button data-act="down" title="Move down">' + (ICONS['arrow-down'] || '↓') + '</button>' +
+          '<button data-act="dup" title="Duplicate">' + (ICONS['copy'] || 'D') + '</button>' +
+          '<button data-act="tpl" title="Save as template">' + (ICONS['bookmark'] || 'T') + '</button>' +
+          '<button data-act="del" title="Delete" class="danger">' + (ICONS['x'] || '×') + '</button>';
         node.insertBefore(tools, node.firstChild);
       }
       if (kind === 'col') {
         var add = document.createElement('button');
         add.className = 'jvb-col__add';
         add.type = 'button';
-        add.textContent = '+ Add element here';
+        add.innerHTML = (ICONS['rows-3'] || '') + '<span>Add row here</span>';
         node.appendChild(add);
       }
     });
@@ -214,12 +215,12 @@
       post({ t: 'sec-action', act: toolBtn.dataset.act, id: sec.getAttribute('data-jvb') });
       return;
     }
-    // column add
+    // column add-row button
     var addBtn = e.target.closest('.jvb-col__add');
     if (addBtn) {
       e.preventDefault(); e.stopPropagation();
       var col = addBtn.closest('[data-jvb]');
-      post({ t: 'want-add', colId: col.getAttribute('data-jvb') });
+      post({ t: 'add-row', colId: col.getAttribute('data-jvb') });
       return;
     }
     // insert-section bar

@@ -18,8 +18,8 @@
     dirty: false, saving: false, lastSaved: '',
     undo: [], redo: [],
     lastChangeKey: '', lastChangeAt: 0,
-    pendingAddCol: null,      // column id waiting for palette pick
     pendingInsertAfter: null, // section id for next section insert
+    uiIcons: {},              // inline SVG strings for JS chrome (from elements API)
     frameReady: false,
     panelTab: 'content',
   };
@@ -227,7 +227,7 @@
     refreshFrame();
     S.selected = { kind: 'section', id: sec.id };
     renderPanel();
-    toast('Section added — click elements on the left to fill columns');
+    toast('Section added — drag elements from the left panel');
   }
 
   function deleteNode(id) {
@@ -710,7 +710,7 @@
         cell.className = 'jvb-gallery-grid__item';
         cell.innerHTML = '<img src="' + esc(img.url) + '" alt="">';
         var rm = document.createElement('button');
-        rm.type = 'button'; rm.textContent = '✕'; rm.title = 'Remove';
+        rm.type = 'button'; rm.innerHTML = S.uiIcons['x'] || '×'; rm.title = 'Remove'; rm.className = 'jvb-ic-btn';
         rm.addEventListener('click', function () {
           pushUndo(); images.splice(i, 1); setSetting(node, field.key, images); markDirty(true); refreshFrame(); draw();
         });
@@ -826,7 +826,7 @@
         var title = document.createElement('span');
         title.textContent = (item[labelKey] || 'Item ' + (i + 1));
         var rm = document.createElement('button');
-        rm.type = 'button'; rm.textContent = '🗑'; rm.title = 'Remove';
+        rm.type = 'button'; rm.innerHTML = S.uiIcons['trash-2'] || '×'; rm.title = 'Remove'; rm.className = 'jvb-ic-btn';
         rm.addEventListener('click', function (e) {
           e.stopPropagation();
           pushUndo(); items.splice(i, 1); persist(); draw();
@@ -935,16 +935,18 @@
     // quick actions
     var actions = document.createElement('div');
     actions.style.cssText = 'display:flex;gap:6px;margin-top:20px;padding-top:14px;border-top:1px solid #e2e8f0';
-    var dup = miniAction('⧉ Duplicate', function () { duplicateNode(node.id); });
-    var del = miniAction('🗑 Delete', function () { deleteNode(node.id); }, true);
+    var dup = miniAction('Duplicate', function () { duplicateNode(node.id); }, false, 'copy');
+    var del = miniAction('Delete', function () { deleteNode(node.id); }, true, 'trash-2');
     actions.appendChild(dup); actions.appendChild(del);
     panelBody.appendChild(actions);
   }
 
-  function miniAction(label, fn, danger) {
+  function miniAction(label, fn, danger, icon) {
     var b = document.createElement('button');
     b.type = 'button'; b.className = 'jvb-mini-btn' + (danger ? ' danger' : '');
-    b.textContent = label; b.style.flex = '1';
+    var svg = icon && S.uiIcons[icon] ? S.uiIcons[icon] : '';
+    b.innerHTML = svg + '<span>' + esc(label) + '</span>';
+    b.style.flex = '1';
     b.addEventListener('click', fn);
     return b;
   }
@@ -996,8 +998,8 @@
     }
     var actions = document.createElement('div');
     actions.style.cssText = 'display:flex;gap:6px;margin-top:20px;padding-top:14px;border-top:1px solid #e2e8f0';
-    actions.appendChild(miniAction('+ Column', function () { addColumnToSection(node); }));
-    actions.appendChild(miniAction('🗑 Delete', function () {
+    actions.appendChild(miniAction('Column', function () { addColumnToSection(node); }, false, 'plus'));
+    actions.appendChild(miniAction('Delete', function () {
       var f = findNode(node.id);
       if (f && f.arr.length > 1) deleteNode(node.id);
       else toast('A section needs at least one column', true);
@@ -1070,9 +1072,9 @@
 
     var actions = document.createElement('div');
     actions.style.cssText = 'display:flex;gap:6px;margin-top:20px;padding-top:14px;border-top:1px solid #e2e8f0;flex-wrap:wrap';
-    actions.appendChild(miniAction('⧉ Duplicate', function () { duplicateNode(node.id); }));
-    actions.appendChild(miniAction('💾 Save as template', function () { saveSectionAsTemplate(node); }));
-    actions.appendChild(miniAction('🗑 Delete', function () { deleteNode(node.id); }, true));
+    actions.appendChild(miniAction('Duplicate', function () { duplicateNode(node.id); }, false, 'copy'));
+    actions.appendChild(miniAction('Save as template', function () { saveSectionAsTemplate(node); }, false, 'bookmark'));
+    actions.appendChild(miniAction('Delete', function () { deleteNode(node.id); }, true, 'trash-2'));
     panelBody.appendChild(actions);
   }
 
@@ -1330,7 +1332,8 @@
         item.className = 'jvb-pal-item';
         item.dataset.type = type;
         item.innerHTML = (S.iconSvgs[def.icon] || '') + '<span>' + esc(def.label || type) + '</span>';
-        item.addEventListener('click', function () { palettePick(type); });
+        item.title = 'Drag into the canvas';
+        item.addEventListener('pointerdown', function (e) { startPaletteDrag(type, e); });
         grid.appendChild(item);
       });
       wrap.appendChild(grid);
@@ -1338,28 +1341,101 @@
     });
   }
 
-  function palettePick(type) {
-    var col = null;
-    if (S.pendingAddCol) {
-      var f = findNode(S.pendingAddCol);
-      if (f && f.kind === 'col') col = f.node;
-      S.pendingAddCol = null;
-    } else if (S.selected) {
-      var sf = findNode(S.selected.id);
-      if (sf && sf.kind === 'col') col = sf.node;
-      else if (sf && sf.col) col = sf.col;
+  // ─── Palette drag & drop ───
+  // Pointer-based DnD across the iframe boundary: during a drag the iframe gets
+  // pointer-events:none so all pointer events reach the parent document; drop
+  // targets are resolved with elementFromPoint inside the same-origin frame doc.
+  var dragState = null;
+
+  function startPaletteDrag(type, e) {
+    if (e.button !== 0 || dragState) return;
+    e.preventDefault();
+    var frame = $('#jvbFrame');
+    var fdoc = frame.contentDocument;
+    if (!fdoc) return;
+    var ghost = document.createElement('div');
+    ghost.className = 'jvb-drag-ghost';
+    var def = S.registry[type] || {};
+    ghost.innerHTML = (S.iconSvgs[def.icon] || '') + '<span>' + esc(def.label || type) + '</span>';
+    document.body.appendChild(ghost);
+    dragState = { type: type, ghost: ghost, fdoc: fdoc, frame: frame, line: null, colEl: null, moved: false };
+    frame.style.pointerEvents = 'none';
+    moveGhost(e);
+    document.addEventListener('pointermove', onDragMove);
+    document.addEventListener('pointerup', onDragUp);
+  }
+
+  function moveGhost(e) {
+    if (!dragState) return;
+    dragState.ghost.style.transform = 'translate(' + (e.clientX + 12) + 'px,' + (e.clientY + 12) + 'px)';
+  }
+
+  function onDragMove(e) {
+    if (!dragState) return;
+    dragState.moved = true;
+    moveGhost(e);
+    var ds = dragState;
+    var fr = ds.frame.getBoundingClientRect();
+    var inside = e.clientX >= fr.left && e.clientX <= fr.right && e.clientY >= fr.top && e.clientY <= fr.bottom;
+    // clear previous indicator
+    if (ds.line && ds.line.parentNode) ds.line.parentNode.removeChild(ds.line);
+    ds.line = null; ds.colEl = null; ds.index = -1;
+    if (!inside) return;
+    var el = ds.fdoc.elementFromPoint(e.clientX - fr.left, e.clientY - fr.top);
+    if (!el) return;
+    var col = el.closest('.jvb-col[data-jvb]');
+    var page = el.closest('.jvb-page');
+    if (!col && page) {
+      // empty canvas or drop between sections → first column, else create on drop
+      col = page.querySelector('.jvb-col[data-jvb]');
     }
-    if (!col) col = firstColumn();
-    if (!col) {
-      // no structure yet: create a section with one column
+    if (!col) { ds.emptyCanvas = !!page; return; }
+    ds.emptyCanvas = false;
+    ds.colEl = col;
+    var line = ds.fdoc.createElement('div');
+    line.className = 'jvb-drop-line';
+    var els = Array.prototype.filter.call(col.querySelectorAll(':scope > .jvb-el[data-jvb]'), function () { return true; });
+    var placed = false;
+    for (var i = 0; i < els.length; i++) {
+      var r = els[i].getBoundingClientRect();
+      if ((e.clientY - fr.top) < r.top + r.height / 2) {
+        els[i].insertAdjacentElement('beforebegin', line);
+        ds.index = i; placed = true; break;
+      }
+    }
+    if (!placed) {
+      var emptyHint = col.querySelector(':scope > .jvb-col__empty');
+      if (emptyHint) emptyHint.insertAdjacentElement('beforebegin', line);
+      else col.appendChild(line);
+      ds.index = els.length;
+    }
+    ds.line = line;
+  }
+
+  function onDragUp() {
+    document.removeEventListener('pointermove', onDragMove);
+    document.removeEventListener('pointerup', onDragUp);
+    if (!dragState) return;
+    var ds = dragState; dragState = null;
+    ds.frame.style.pointerEvents = '';
+    if (ds.line && ds.line.parentNode) ds.line.parentNode.removeChild(ds.line);
+    ds.ghost.remove();
+    if (!ds.moved) return; // click without drag: no-op (DnD-only palette)
+    var col = null;
+    if (ds.colEl) {
+      var f = findNode(ds.colEl.getAttribute('data-jvb'));
+      if (f && f.kind === 'col') col = f.node;
+    }
+    if (!col && ds.emptyCanvas) {
       pushUndo();
       var sec = makeSection([100]);
       S.layout.sections.push(sec);
       col = sec.columns[0];
       markDirty(true);
+      addElement(ds.type, col, 0);
+      return;
     }
-    addElement(type, col, null);
-    // switch back to elements tab for rapid adding
+    if (col) addElement(ds.type, col, ds.index);
   }
 
   function buildSectionPresets() {
@@ -1537,10 +1613,14 @@
       case 'sec-action':
         handleSecAction(msg);
         break;
-      case 'want-add':
-        S.pendingAddCol = msg.colId;
-        toast('Now click an element on the left to insert it into that column');
+      case 'add-row': {
+        var cf = findNode(msg.colId);
+        if (cf) {
+          var secId = cf.section ? cf.section.id : null;
+          insertSection([100], secId);
+        }
         break;
+      }
       case 'insert-section':
         S.pendingInsertAfter = msg.afterId;
         // open sections tab
@@ -1666,6 +1746,7 @@
         (els.elements || []).forEach(function (def) { if (def.type) S.registry[def.type] = def; });
         S.icons = els.icons || [];
         S.iconSvgs = els.icon_svgs || {};
+        S.uiIcons = els.ui_icons || {};
         S.tokens = els.tokens || {};
         S.forms = els.forms || [];
         S.categories = els.categories || [];

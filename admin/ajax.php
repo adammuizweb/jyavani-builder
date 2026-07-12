@@ -53,7 +53,7 @@ if ($action === 'frame') {
 </head>
 <body class="jvb-frame jvb-frame--<?= htmlspecialchars($device, ENT_QUOTES) ?>">
 <?= $html ?>
-<script>window.JVB_FRAME = { postId: <?= $postId ?>, device: '<?= htmlspecialchars($device, ENT_QUOTES) ?>', tokens: <?= $tokensJson ?> };</script>
+<script>window.JVB_FRAME = { postId: <?= $postId ?>, device: '<?= htmlspecialchars($device, ENT_QUOTES) ?>', tokens: <?= $tokensJson ?>, icons: <?= json_encode(jvb_ui_icons_js(['settings', 'arrow-up', 'arrow-down', 'copy', 'bookmark', 'x', 'rows-3']), JSON_UNESCAPED_SLASHES) ?> };</script>
 <script src="/static/vendor/jyavani-builder/frontend.js"></script>
 <script src="/static/vendor/jyavani-builder/frame.js"></script>
 </body>
@@ -222,6 +222,7 @@ switch ($action) {
             'elements' => $out,
             'icons' => jvb_available_icons(),
             'icon_svgs' => $iconSvgs,
+            'ui_icons' => jvb_ui_icons_js(['x', 'trash-2', 'copy', 'pencil', 'plus', 'grip-vertical', 'chevron-left', 'chevron-right', 'rows-3']),
             'tokens' => jvb_get_tokens($pdo),
             'forms' => $forms,
             'categories' => $cats,

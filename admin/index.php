@@ -151,20 +151,20 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
           </td>
           <td><?= htmlspecialchars($p['type'], ENT_QUOTES) ?></td>
           <td><span class="jvba-sub"><?= htmlspecialchars($p['status'], ENT_QUOTES) ?></span></td>
-          <td><span class="jvba-badge <?= $badgeCls ?>"><?= $badgeLbl ?></span><?php if ($homePostId === $pid): ?> <span class="jvba-badge published" title="This post provides the homepage layout">⌂ Home</span><?php endif; ?></td>
+          <td><span class="jvba-badge <?= $badgeCls ?>"><?= $badgeLbl ?></span><?php if ($homePostId === $pid): ?> <span class="jvba-badge published" title="This post provides the homepage layout"><?= jvb_ui_icon('house', 12) ?> Home</span><?php endif; ?></td>
           <td class="jvba-sub" style="white-space:nowrap"><?= htmlspecialchars(date('d M Y', strtotime((string)$p['updated_at'])), ENT_QUOTES) ?></td>
           <td style="white-space:nowrap">
-            <a class="jvba-btn sm primary" href="<?= jvb_url(['view' => 'builder', 'post_id' => $pid]) ?>">⚡ Builder</a>
+            <a class="jvba-btn sm primary" href="<?= jvb_url(['view' => 'builder', 'post_id' => $pid]) ?>"><?= jvb_ui_icon('zap', 13) ?> Builder</a>
             <a class="jvba-btn sm" href="/<?= htmlspecialchars($p['slug'], ENT_QUOTES) ?>/" target="_blank" rel="noopener">View</a>
             <form method="post" style="display:inline">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
               <input type="hidden" name="post_id" value="<?= $pid ?>">
               <?php if ($homePostId === $pid): ?>
                 <input type="hidden" name="jvb_action" value="unset_home">
-                <button class="jvba-btn sm" type="submit" title="Remove homepage designation">⌂✕</button>
+                <button class="jvba-btn sm" type="submit" title="Remove homepage designation"><?= jvb_ui_icon('house', 13) ?><?= jvb_ui_icon('x', 11) ?></button>
               <?php else: ?>
                 <input type="hidden" name="jvb_action" value="set_home">
-                <button class="jvba-btn sm" type="submit" title="Use this post's builder layout as the homepage">⌂ Set home</button>
+                <button class="jvba-btn sm" type="submit" title="Use this post's builder layout as the homepage"><?= jvb_ui_icon('house', 13) ?> Set home</button>
               <?php endif; ?>
             </form>
           </td>
@@ -179,7 +179,7 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
     <span class="jvba-hint">
       <strong>Draft → Publish workflow:</strong> edits in the builder are autosaved as a draft and never touch the live page until you click <strong>Publish</strong>.
       Preview drafts any time with <span class="jvba-mono">?jvb_preview=1</span> on the page URL. Revisions are kept automatically on each publish (last <?= JVB_MAX_REVISIONS ?>).
-      <br><strong>Homepage:</strong> mark a post with <span class="jvba-mono">⌂ Set home</span> — its <em>published</em> builder layout replaces the theme's homepage slot (site header/sidebar/footer stay).
+      <br><strong>Homepage:</strong> mark a post with <span class="jvba-mono">Set home</span> — its <em>published</em> builder layout replaces the theme's homepage slot (site header/sidebar/footer stay).
       Without a designation, a published page with slug <span class="jvba-mono">home</span> is used automatically.
     </span>
   </div>
