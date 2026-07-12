@@ -1446,6 +1446,19 @@
       });
     });
     $('#jvbPaletteSearch').addEventListener('input', function (e) { filterPalette(e.target.value); });
+
+    // Left palette show/hide (persisted) for a wider canvas
+    var leftBtn = $('#jvbToggleLeft');
+    function setLeftHidden(hidden) {
+      $('#jvbApp').classList.toggle('left-hidden', hidden);
+      leftBtn.setAttribute('aria-pressed', hidden ? 'true' : 'false');
+      leftBtn.classList.toggle('is-active', hidden);
+      try { localStorage.setItem('jvb_left_hidden', hidden ? '1' : '0'); } catch (e) {}
+    }
+    leftBtn.addEventListener('click', function () {
+      setLeftHidden(!$('#jvbApp').classList.contains('left-hidden'));
+    });
+    try { if (localStorage.getItem('jvb_left_hidden') === '1') setLeftHidden(true); } catch (e) {}
   }
 
   function publish() {
@@ -1587,6 +1600,11 @@
       e.preventDefault(); duplicateNode(S.selected.id); return;
     }
     if (typing) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      $('#jvbToggleLeft').click();
+      return;
+    }
     if (e.key === 'Delete' && S.selected) {
       e.preventDefault();
       var f = currentNode();

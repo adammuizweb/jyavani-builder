@@ -27,6 +27,7 @@ $boot = [
   <header class="jvb-bar">
     <div class="jvb-bar__group">
       <a class="jvb-bar__btn" href="<?= jvb_url() ?>" title="Back to pages">‹</a>
+      <button class="jvb-bar__btn" id="jvbToggleLeft" title="Toggle elements panel (Ctrl+B)" aria-pressed="false">◧</button>
       <div class="jvb-bar__title">
         <strong><?= htmlspecialchars($post['title'], ENT_QUOTES) ?></strong>
         <span class="jvb-bar__slug">/<?= htmlspecialchars($post['slug'], ENT_QUOTES) ?>/ · <?= htmlspecialchars($post['type'], ENT_QUOTES) ?></span>

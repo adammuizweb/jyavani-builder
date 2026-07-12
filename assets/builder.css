@@ -9,6 +9,13 @@
 .jvb-app *, .jvb-app *::before, .jvb-app *::after { box-sizing: border-box; }
 .jvb-app button { font: inherit; }
 
+/* [hidden] must always win over display rules (drawer, panel tabs, tabpanels).
+   builder.css only loads on the builder page, so this stays scoped in practice. */
+[hidden] { display: none !important; }
+
+/* Left palette collapsed → canvas takes the full width */
+.jvb-app.left-hidden .jvb-left { display: none; }
+
 /* ---------- Toolbar ---------- */
 .jvb-bar {
   flex: none; height: 48px; display: flex; align-items: center; justify-content: space-between;
@@ -28,6 +35,7 @@
   text-decoration: none;
 }
 .jvb-bar__btn:hover:not(:disabled) { background: #334155; border-color: #475569; }
+.jvb-bar__btn.is-active { background: #334155; border-color: #60a5fa; color: #93c5fd; }
 .jvb-bar__btn:disabled { opacity: .35; cursor: default; }
 .jvb-bar__btn--publish { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
 .jvb-bar__btn--publish:hover { background: #1d4ed8 !important; }
