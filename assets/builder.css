@@ -49,9 +49,11 @@
 .jvb-devices { display: flex; background: #1e293b; border: 1px solid #334155; border-radius: 7px; overflow: hidden; }
 .jvb-devices button {
   border: 0; background: transparent; color: #94a3b8; cursor: pointer;
-  width: 34px; height: 30px; font-size: 14px;
+  width: 36px; height: 32px;
+  display: flex; align-items: center; justify-content: center; padding: 0;
 }
-.jvb-devices button.is-active { background: #2563eb; color: #fff; }
+.jvb-devices button svg { width: 16px; height: 16px; flex-shrink: 0; }
+.jvb-devices button.is-active { background: #2563eb; color: #fff; border-radius: 5px; margin: 1px; }
 
 .jvb-status { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #334155; color: #cbd5e1; }
 .jvb-status[data-status="published"] { background: #166534; color: #bbf7d0; }
@@ -221,8 +223,10 @@
 .jvb-align-btns { display: flex; gap: 4px; }
 .jvb-align-btns button {
   flex: 1; border: 1px solid #dbe1e8; background: #fff; border-radius: 6px;
-  padding: 6px 0; cursor: pointer; color: #64748b; font-size: 13px;
+  padding: 6px 0; cursor: pointer; color: #64748b;
+  display: flex; align-items: center; justify-content: center;
 }
+.jvb-align-btns button svg { width: 15px; height: 15px; flex-shrink: 0; }
 .jvb-align-btns button.is-active { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
 
 .jvb-spacing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }

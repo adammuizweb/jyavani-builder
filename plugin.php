@@ -396,7 +396,10 @@ function jvb_icon_svg(string $name): string {
     if (!is_file($path)) { $cache[$name] = ''; return ''; }
     $svg = (string)file_get_contents($path);
     $svg = (string)preg_replace('/<!--.*?-->/s', '', $svg);
-    $svg = (string)preg_replace('/\s(width|height)="[^"]*"/', '', $svg);
+    $svg = trim($svg);
+    $svg = (string)preg_replace_callback('/^(<svg[^>]*>)/s', function ($m) {
+        return preg_replace('/\s(width|height)="[^"]*"/', '', $m[1]);
+    }, $svg, 1);
     $svg = (string)preg_replace('/\sclass="[^"]*"/', '', $svg, 1);
     $svg = str_replace('<svg', '<svg class="jvb-ic"', $svg);
     $cache[$name] = trim($svg);
