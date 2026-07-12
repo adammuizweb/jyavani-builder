@@ -1446,28 +1446,26 @@
     });
     $('#jvbPaletteSearch').addEventListener('input', function (e) { filterPalette(e.target.value); });
 
-    // Left palette show/hide (persisted) for a wider canvas
-    var leftBtn = $('#jvbToggleLeft');
+    // Side panel show/hide via semicircle edge tabs (persisted)
+    var edgeLeft = $('#jvbEdgeLeft');
     function setLeftHidden(hidden) {
       $('#jvbApp').classList.toggle('left-hidden', hidden);
-      leftBtn.setAttribute('aria-pressed', hidden ? 'true' : 'false');
-      leftBtn.classList.toggle('is-active', hidden);
+      edgeLeft.textContent = hidden ? '❯' : '❮';
       try { localStorage.setItem('jvb_left_hidden', hidden ? '1' : '0'); } catch (e) {}
     }
-    leftBtn.addEventListener('click', function () {
+    edgeLeft.addEventListener('click', function () {
       setLeftHidden(!$('#jvbApp').classList.contains('left-hidden'));
     });
     try { if (localStorage.getItem('jvb_left_hidden') === '1') setLeftHidden(true); } catch (e) {}
 
-    // Right settings panel show/hide (persisted); auto-shows on node select
-    var rightBtn = $('#jvbToggleRight');
+    // Right settings panel; auto-shows on node select
+    var edgeRight = $('#jvbEdgeRight');
     S.setRightHidden = function (hidden) {
       $('#jvbApp').classList.toggle('right-hidden', hidden);
-      rightBtn.setAttribute('aria-pressed', hidden ? 'true' : 'false');
-      rightBtn.classList.toggle('is-active', hidden);
+      edgeRight.textContent = hidden ? '❮' : '❯';
       try { localStorage.setItem('jvb_right_hidden', hidden ? '1' : '0'); } catch (e) {}
     };
-    rightBtn.addEventListener('click', function () {
+    edgeRight.addEventListener('click', function () {
       S.setRightHidden(!$('#jvbApp').classList.contains('right-hidden'));
     });
     try { if (localStorage.getItem('jvb_right_hidden') === '1') S.setRightHidden(true); } catch (e) {}
@@ -1616,7 +1614,7 @@
     if (typing) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
       e.preventDefault();
-      $('#jvbToggleLeft').click();
+      $('#jvbEdgeLeft').click();
       return;
     }
     if (e.key === 'Delete' && S.selected) {

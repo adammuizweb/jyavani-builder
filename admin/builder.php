@@ -27,7 +27,6 @@ $boot = [
   <header class="jvb-bar">
     <div class="jvb-bar__group">
       <a class="jvb-bar__btn" href="<?= jvb_url() ?>" title="Back to pages">‹</a>
-      <button class="jvb-bar__btn" id="jvbToggleLeft" title="Toggle elements panel (Ctrl+B)" aria-pressed="false">◧</button>
       <div class="jvb-bar__title">
         <strong><?= htmlspecialchars($post['title'], ENT_QUOTES) ?></strong>
         <span class="jvb-bar__slug">/<?= htmlspecialchars($post['slug'], ENT_QUOTES) ?>/ · <?= htmlspecialchars($post['type'], ENT_QUOTES) ?></span>
@@ -47,7 +46,6 @@ $boot = [
     <div class="jvb-bar__group">
       <span class="jvb-status" id="jvbStatus" data-status="none">—</span>
       <span class="jvb-savestate" id="jvbSaveState"></span>
-      <button class="jvb-bar__btn" id="jvbToggleRight" title="Show/hide settings panel" aria-pressed="false">◨</button>
       <button class="jvb-bar__btn" id="jvbRevisions" title="Revisions">🕓</button>
       <button class="jvb-bar__btn" id="jvbPageSettings" title="Page settings (custom CSS)">⚙</button>
       <a class="jvb-bar__btn" id="jvbPreview" href="<?= htmlspecialchars($permalink, ENT_QUOTES) ?>?jvb_preview=1" target="_blank" rel="noopener" title="Preview draft">👁</a>
@@ -57,6 +55,8 @@ $boot = [
 
   <!-- ── Workspace ── -->
   <div class="jvb-work">
+    <button class="jvb-edge-tab jvb-edge-tab--left" id="jvbEdgeLeft" title="Show/hide elements panel (Ctrl+B)" aria-label="Toggle elements panel">❮</button>
+    <button class="jvb-edge-tab jvb-edge-tab--right" id="jvbEdgeRight" title="Show/hide settings panel" aria-label="Toggle settings panel">❯</button>
     <!-- Left: palette -->
     <aside class="jvb-left" id="jvbLeft">
       <div class="jvb-left__tabs">
