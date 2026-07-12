@@ -1,6 +1,6 @@
 {
   "name": "jyavani-builder",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "title": "Jyavani Page Builder",
   "icon": "icon.svg",
   "description": "Professional drag-and-drop page builder for Jyavani CMS: WYSIWYG iframe canvas with inline editing, sections/columns/elements tree, design tokens, responsive per-device controls, draft/publish workflow, revisions, template library, entrance animations, shape dividers, dynamic posts grid, and native Form Builder integration.",
