@@ -381,28 +381,32 @@ require_once __DIR__ . '/public/starters.php';
 // Track whether any layout was rendered this request (for footer assets).
 function jvb_mark_rendered(): void { $GLOBALS['_jvb_any_rendered'] = true; }
 
-// Inline UI icon (Lucide, ISC) from the plugin's bundled set — no emoji, no
-// external requests, works on any site regardless of the core icon set.
-function jvb_ui_icon(string $name, int $size = 16): string {
+// Read a raw SVG string from the CMS core icon set (public/static/icons/lucide/).
+// Returns a clean <svg> element with class="jvb-ic", stripped of width/height
+// so CSS sizing rules apply.
+function jvb_icon_svg(string $name): string {
     static $cache = [];
     $name = preg_replace('/[^a-z0-9-]/', '', $name);
-    if (!isset($cache[$name])) {
-        $file = __DIR__ . '/assets/icons/' . $name . '.svg';
-        $svg = is_file($file) ? (string)file_get_contents($file) : '';
-        $svg = trim((string)preg_replace('/<!--.*?-->/s', '', $svg));
-        $svg = (string)preg_replace('/\s(width|height)="[^"]*"/', '', $svg);
-        $cache[$name] = $svg;
-    }
-    if ($cache[$name] === '') return '';
-    $svg = $cache[$name];
+    if (isset($cache[$name])) return $cache[$name];
+    $dir = defined('PUBLIC_PATH')
+        ? PUBLIC_PATH . '/static/icons/lucide'
+        : (realpath(__DIR__ . '/../../public/static/icons/lucide') ?: '');
+    if (!$dir) { $cache[$name] = ''; return ''; }
+    $path = $dir . '/' . $name . '.svg';
+    if (!is_file($path)) { $cache[$name] = ''; return ''; }
+    $svg = (string)file_get_contents($path);
+    $svg = (string)preg_replace('/<!--.*?-->/s', '', $svg);
+    $svg = (string)preg_replace('/\s(width|height)="[^"]*"/', '', $svg);
     $svg = (string)preg_replace('/\sclass="[^"]*"/', '', $svg, 1);
-    return str_replace('<svg', '<svg class="jvb-ic" width="' . $size . '" height="' . $size . '"', $svg);
+    $svg = str_replace('<svg', '<svg class="jvb-ic"', $svg);
+    $cache[$name] = trim($svg);
+    return $cache[$name];
 }
 
 // Icon map for JS chrome (builder + frame), keyed by name → inline SVG.
 function jvb_ui_icons_js(array $names): array {
     $out = [];
-    foreach ($names as $n) $out[$n] = jvb_ui_icon($n);
+    foreach ($names as $n) $out[$n] = jvb_icon_svg($n);
     return $out;
 }
 
@@ -431,7 +435,7 @@ add_filter('post_content', function (string $html, array $post = []): string {
     jvb_mark_rendered();
     $out = jvb_render_layout($pdo, $layout, $post);
     if ($which === 'draft') {
-        $out = '<div class="jvb-preview-bar">' . jvb_ui_icon('alert-triangle') . ' Draft preview — <a href="?">exit preview</a></div>' . $out;
+        $out = '<div class="jvb-preview-bar">' . jvb_icon_svg('alert-triangle') . ' Draft preview — <a href="?">exit preview</a></div>' . $out;
     }
     return $out;
 }, 5);
@@ -482,7 +486,7 @@ add_filter('layout_slot_html', function (string $html, string $slot = '', array 
     jvb_mark_rendered();
     $out = jvb_render_layout($pdo, $layout, $post);
     if ($which === 'draft') {
-        $out = '<div class="jvb-preview-bar">' . jvb_ui_icon('alert-triangle') . ' Draft preview — <a href="?">exit preview</a></div>' . $out;
+        $out = '<div class="jvb-preview-bar">' . jvb_icon_svg('alert-triangle') . ' Draft preview — <a href="?">exit preview</a></div>' . $out;
     }
     return $out;
 }, 5);

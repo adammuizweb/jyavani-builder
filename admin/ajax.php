@@ -222,7 +222,7 @@ switch ($action) {
             'elements' => $out,
             'icons' => jvb_available_icons(),
             'icon_svgs' => $iconSvgs,
-            'ui_icons' => jvb_ui_icons_js(['x', 'trash-2', 'copy', 'pencil', 'plus', 'grip-vertical', 'chevron-left', 'chevron-right', 'rows-3']),
+            'ui_icons' => jvb_ui_icons_js(['x', 'trash-2', 'copy', 'pen', 'plus', 'grip-vertical', 'chevron-left', 'chevron-right', 'rows-3', 'align-left', 'align-center', 'align-right', 'align-justify', 'monitor', 'tablet', 'smartphone']),
             'tokens' => jvb_get_tokens($pdo),
             'forms' => $forms,
             'categories' => $cats,

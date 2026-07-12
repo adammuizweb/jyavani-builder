@@ -551,15 +551,15 @@
 
   FR.align = function (field, node, dev) {
     var cur = dev ? getDev(node, field.key, dev) : { value: (node.settings || {})[field.key], own: true };
-    var opts = [['left', '⬤━'], ['center', '━⬤━'], ['right', '━⬤'], ['justify', '☰']];
-    var labels = { left: '⯇', center: '≡', right: '⯈', justify: '☰' };
+    var alignIcons = { left: 'align-left', center: 'align-center', right: 'align-right', justify: 'align-justify' };
     var row = document.createElement('div');
     row.className = 'jvb-align-btns';
     [['left', 'Left'], ['center', 'Center'], ['right', 'Right'], ['justify', 'Justify']].forEach(function (o) {
       var b = document.createElement('button');
       b.type = 'button';
       b.title = o[1];
-      b.textContent = labels[o[0]];
+      var ico = S.uiIcons[alignIcons[o[0]]];
+      b.innerHTML = ico || { left: '⯇', center: '≡', right: '⯈', justify: '☰' }[o[0]];
       b.className = cur.value === o[0] ? 'is-active' : '';
       b.addEventListener('click', function () {
         $$('button', row).forEach(function (x) { x.classList.remove('is-active'); });
@@ -960,9 +960,12 @@
     row.className = 'jvb-align-btns';
     var hide = (node.settings || {}).hide_on;
     if (!Array.isArray(hide)) hide = [];
-    [['desktop', 'D'], ['tablet', 'T'], ['mobile', 'M']].forEach(function (d) {
+    var devIcons = { desktop: 'monitor', tablet: 'tablet', mobile: 'smartphone' };
+    [['desktop', 'D'], ['tablet'], ['mobile']].forEach(function (d) {
       var b = document.createElement('button');
-      b.type = 'button'; b.textContent = d[1]; b.title = 'Hide on ' + d[0];
+      b.type = 'button'; b.title = 'Hide on ' + d[0];
+      var ico = S.uiIcons[devIcons[d[0]]];
+      b.innerHTML = ico || d[1] || d[0][0].toUpperCase();
       b.style.flex = 'none'; b.style.width = '34px';
       b.className = hide.indexOf(d[0]) !== -1 ? 'is-active' : '';
       b.addEventListener('click', function () {

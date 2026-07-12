@@ -26,7 +26,7 @@ $boot = [
   <!-- ── Toolbar ── -->
   <header class="jvb-bar">
     <div class="jvb-bar__group">
-      <a class="jvb-bar__btn" href="<?= jvb_url() ?>" title="Back to pages"><?= jvb_ui_icon('arrow-left') ?></a>
+      <a class="jvb-bar__btn" href="<?= jvb_url() ?>" title="Back to pages"><?= svg_ico('arrow-left', 'jvb-ic') ?></a>
       <div class="jvb-bar__title">
         <strong><?= htmlspecialchars($post['title'], ENT_QUOTES) ?></strong>
         <span class="jvb-bar__slug">/<?= htmlspecialchars($post['slug'], ENT_QUOTES) ?>/ · <?= htmlspecialchars($post['type'], ENT_QUOTES) ?></span>
@@ -35,28 +35,28 @@ $boot = [
 
     <div class="jvb-bar__group">
       <div class="jvb-devices" id="jvbDevices" role="tablist" aria-label="Preview device">
-        <button data-device="desktop" class="is-active" title="Desktop"><?= jvb_ui_icon('monitor') ?></button>
-        <button data-device="tablet" title="Tablet"><?= jvb_ui_icon('tablet') ?></button>
-        <button data-device="mobile" title="Mobile"><?= jvb_ui_icon('smartphone') ?></button>
+        <button data-device="desktop" class="is-active" title="Desktop"><?= svg_ico('monitor', 'jvb-ic') ?></button>
+        <button data-device="tablet" title="Tablet"><?= svg_ico('tablet', 'jvb-ic') ?></button>
+        <button data-device="mobile" title="Mobile"><?= svg_ico('smartphone', 'jvb-ic') ?></button>
       </div>
-      <button class="jvb-bar__btn" id="jvbUndo" title="Undo (Ctrl+Z)" disabled><?= jvb_ui_icon('undo-2') ?></button>
-      <button class="jvb-bar__btn" id="jvbRedo" title="Redo (Ctrl+Y)" disabled><?= jvb_ui_icon('redo-2') ?></button>
+      <button class="jvb-bar__btn" id="jvbUndo" title="Undo (Ctrl+Z)" disabled><?= svg_ico('undo-2', 'jvb-ic') ?></button>
+      <button class="jvb-bar__btn" id="jvbRedo" title="Redo (Ctrl+Y)" disabled><?= svg_ico('redo-2', 'jvb-ic') ?></button>
     </div>
 
     <div class="jvb-bar__group">
       <span class="jvb-status" id="jvbStatus" data-status="none">—</span>
       <span class="jvb-savestate" id="jvbSaveState"></span>
-      <button class="jvb-bar__btn" id="jvbRevisions" title="Revisions"><?= jvb_ui_icon('history') ?></button>
-      <button class="jvb-bar__btn" id="jvbPageSettings" title="Page settings (custom CSS)"><?= jvb_ui_icon('settings') ?></button>
-      <a class="jvb-bar__btn" id="jvbPreview" href="<?= htmlspecialchars($permalink, ENT_QUOTES) ?>?jvb_preview=1" target="_blank" rel="noopener" title="Preview draft"><?= jvb_ui_icon('eye') ?></a>
+      <button class="jvb-bar__btn" id="jvbRevisions" title="Revisions"><?= svg_ico('history', 'jvb-ic') ?></button>
+      <button class="jvb-bar__btn" id="jvbPageSettings" title="Page settings (custom CSS)"><?= svg_ico('settings', 'jvb-ic') ?></button>
+      <a class="jvb-bar__btn" id="jvbPreview" href="<?= htmlspecialchars($permalink, ENT_QUOTES) ?>?jvb_preview=1" target="_blank" rel="noopener" title="Preview draft"><?= svg_ico('eye', 'jvb-ic') ?></a>
       <button class="jvb-bar__btn jvb-bar__btn--publish" id="jvbPublish">Publish</button>
     </div>
   </header>
 
   <!-- ── Workspace ── -->
   <div class="jvb-work">
-    <button class="jvb-edge-tab jvb-edge-tab--left" id="jvbEdgeLeft" title="Show/hide elements panel (Ctrl+B)" aria-label="Toggle elements panel"><?= jvb_ui_icon('chevron-left', 12) ?></button>
-    <button class="jvb-edge-tab jvb-edge-tab--right" id="jvbEdgeRight" title="Show/hide settings panel" aria-label="Toggle settings panel"><?= jvb_ui_icon('chevron-right', 12) ?></button>
+    <button class="jvb-edge-tab jvb-edge-tab--left" id="jvbEdgeLeft" title="Show/hide elements panel (Ctrl+B)" aria-label="Toggle elements panel"><?= svg_ico('chevron-left', 'jvb-ic', ['style' => 'width:12px;height:12px']) ?></button>
+    <button class="jvb-edge-tab jvb-edge-tab--right" id="jvbEdgeRight" title="Show/hide settings panel" aria-label="Toggle settings panel"><?= svg_ico('chevron-right', 'jvb-ic', ['style' => 'width:12px;height:12px']) ?></button>
     <!-- Left: palette -->
     <aside class="jvb-left" id="jvbLeft">
       <div class="jvb-left__tabs">
@@ -90,7 +90,7 @@ $boot = [
     <aside class="jvb-panel" id="jvbPanel">
       <div class="jvb-panel__head">
         <span id="jvbPanelTitle">Settings</span>
-        <button class="jvb-panel__close" id="jvbPanelClose" title="Hide panel"><?= jvb_ui_icon('x', 14) ?></button>
+        <button class="jvb-panel__close" id="jvbPanelClose" title="Hide panel"><?= svg_ico('x', 'jvb-ic', ['style' => 'width:14px;height:14px']) ?></button>
       </div>
       <div class="jvb-panel__tabs" id="jvbPanelTabs" hidden>
         <button class="is-active" data-ptab="content">Content</button>
@@ -105,7 +105,7 @@ $boot = [
 
   <!-- ── Revisions drawer ── -->
   <div class="jvb-drawer" id="jvbRevDrawer" hidden>
-    <div class="jvb-drawer__head"><strong>Revisions</strong><button id="jvbRevClose"><?= jvb_ui_icon('x', 14) ?></button></div>
+    <div class="jvb-drawer__head"><strong>Revisions</strong><button id="jvbRevClose"><?= svg_ico('x', 'jvb-ic', ['style' => 'width:14px;height:14px']) ?></button></div>
     <div class="jvb-drawer__body" id="jvbRevList"></div>
   </div>
 </div>

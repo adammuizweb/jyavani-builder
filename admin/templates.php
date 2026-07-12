@@ -52,7 +52,7 @@ $templates = jvb_list_templates($pdo);
       <form method="post" style="display:inline" onsubmit="return confirm('Restore starter templates? Your own templates are kept.')">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
         <input type="hidden" name="jvb_action" value="reseed">
-        <button class="jvba-btn" type="submit"><?= jvb_ui_icon('rotate-ccw', 13) ?> Restore Starters</button>
+        <button class="jvba-btn" type="submit"><?= svg_ico('refresh-cw', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> Restore Starters</button>
       </form>
     </div>
   </div>
