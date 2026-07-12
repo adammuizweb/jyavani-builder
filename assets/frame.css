@@ -1,0 +1,96 @@
+/* Jyavani Page Builder — frame.css (canvas chrome inside the iframe) */
+
+html, body { margin: 0; padding: 0; background: #f1f5f9; }
+body.jvb-frame { min-height: 100vh; }
+.jvb-page { min-height: 100vh; background: #fff; }
+.jvb-preview-bar { display: none; }
+
+/* Disable real navigation/forms inside the canvas */
+.jvb-frame a, .jvb-frame button, .jvb-frame summary, .jvb-frame input,
+.jvb-frame .jvb-video--facade, .jvb-frame [data-jvb-lightbox] { pointer-events: none; }
+
+/* ---------- Node outlines ---------- */
+[data-jvb] { position: relative; transition: outline-color .12s; outline: 1px dashed transparent; outline-offset: -1px; }
+.jvb-section[data-jvb]:hover { outline-color: #93c5fd; }
+.jvb-col[data-jvb]:hover { outline-color: #86efac; }
+.jvb-el[data-jvb]:hover { outline-color: #fdba74; }
+
+.jvb-node-sel { outline: 2px solid #2563eb !important; outline-offset: -2px; }
+.jvb-col.jvb-node-sel { outline-color: #16a34a !important; }
+.jvb-el.jvb-node-sel { outline-color: #ea580c !important; }
+
+/* Hover label chip */
+.jvb-chip {
+  position: absolute; top: 0; left: 0; z-index: 50;
+  font: 600 10px/1.4 system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase;
+  padding: 2px 6px; color: #fff; background: #94a3b8;
+  border-radius: 0 0 4px 0; pointer-events: none; display: none;
+}
+.jvb-section[data-jvb]:hover > .jvb-chip { display: block; background: #3b82f6; }
+.jvb-col[data-jvb]:hover > .jvb-chip { display: block; background: #22c55e; }
+.jvb-el[data-jvb]:hover > .jvb-chip { display: block; background: #f97316; }
+.jvb-node-sel > .jvb-chip { display: block !important; }
+
+/* ---------- Section toolbar (hover) ---------- */
+.jvb-sec-tools {
+  position: absolute; top: 6px; right: 6px; z-index: 60; display: none;
+  gap: 2px; background: #1e293b; border-radius: 6px; padding: 3px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+}
+.jvb-section[data-jvb]:hover > .jvb-sec-tools, .jvb-section.jvb-node-sel > .jvb-sec-tools { display: flex; }
+.jvb-sec-tools button {
+  border: 0; background: transparent; color: #e2e8f0; cursor: pointer;
+  width: 24px; height: 24px; border-radius: 4px; font-size: 12px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; pointer-events: auto;
+}
+.jvb-sec-tools button:hover { background: #334155; color: #fff; }
+.jvb-sec-tools button.danger:hover { background: #dc2626; }
+
+/* ---------- Column add button ---------- */
+.jvb-col__add {
+  display: none; margin-top: 8px; width: 100%;
+  border: 1px dashed #86efac; background: rgba(34,197,94,.06); color: #16a34a;
+  border-radius: 6px; padding: 6px; font: 600 11px system-ui, sans-serif;
+  cursor: pointer; pointer-events: auto;
+}
+.jvb-col[data-jvb]:hover > .jvb-col__add, .jvb-col.jvb-node-sel > .jvb-col__add { display: block; }
+.jvb-col__add:hover { background: rgba(34,197,94,.14); }
+
+/* ---------- Empty states ---------- */
+.jvb-col__empty, .jvb-section__empty {
+  padding: 24px; text-align: center; color: #94a3b8; font: 500 12px system-ui, sans-serif;
+  border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;
+}
+.jvb-canvas-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 60vh; color: #94a3b8; font: 500 14px system-ui, sans-serif; text-align: center;
+}
+
+/* ---------- Insert section bar ---------- */
+.jvb-insert-sec {
+  display: flex; align-items: center; justify-content: center;
+  height: 0; overflow: hidden; transition: height .15s; cursor: pointer;
+  pointer-events: auto;
+}
+.jvb-section[data-jvb]:hover + .jvb-insert-sec, .jvb-insert-sec:hover { height: 26px; }
+.jvb-insert-sec span {
+  background: #2563eb; color: #fff; font: 600 11px system-ui, sans-serif;
+  padding: 3px 12px; border-radius: 999px; box-shadow: 0 2px 8px rgba(37,99,235,.4);
+}
+.jvb-page > .jvb-insert-sec--first { height: 30px; }
+
+/* ---------- Drag & drop ---------- */
+.jvb-el[draggable="true"] { cursor: grab; }
+.jvb-el.jvb-dragging { opacity: .4; outline: 2px solid #2563eb; }
+.jvb-drop-line { height: 3px; background: #2563eb; border-radius: 2px; margin: 4px 0; pointer-events: none; }
+.jvb-col.jvb-drop-target { background: rgba(37,99,235,.05); }
+
+/* ---------- Inline editing ---------- */
+[data-jvb-inline].jvb-editing {
+  outline: 2px solid #f59e0b; outline-offset: 2px; cursor: text;
+  background: rgba(245,158,11,.06); pointer-events: auto !important;
+}
+
+/* ---------- Flash on select ---------- */
+@keyframes jvb-flash { 0% { background: rgba(37,99,235,.15); } 100% { background: transparent; } }
+.jvb-flash { animation: jvb-flash .8s ease; }

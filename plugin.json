@@ -1,0 +1,49 @@
+{
+  "name": "jyavani-builder",
+  "version": "2.0.0",
+  "title": "Jyavani Page Builder",
+  "icon": "icon.svg",
+  "description": "Professional drag-and-drop page builder for Jyavani CMS: WYSIWYG iframe canvas with inline editing, sections/columns/elements tree, design tokens, responsive per-device controls, draft/publish workflow, revisions, template library, entrance animations, shape dividers, dynamic posts grid, and native Form Builder integration.",
+  "author": "Adam Muiz",
+  "author_uri": "https://jyavani.com/member/adammuiz/",
+  "plugin_uri": "https://github.com/adammuizweb/jyavani-builder",
+  "homepage": "https://github.com/adammuizweb/jyavani-builder",
+  "store": {
+    "id": 0,
+    "url": "https://jyavani.com/plugin-store/",
+    "slug": "jyavani-builder"
+  },
+  "requires": {
+    "php": ">=8.1",
+    "extensions": ["pdo", "json"]
+  },
+  "static": {
+    "copy": [
+      {"from": "assets/builder.css", "to": "static/vendor/jyavani-builder/builder.css"},
+      {"from": "assets/builder.js", "to": "static/vendor/jyavani-builder/builder.js"},
+      {"from": "assets/frame.css", "to": "static/vendor/jyavani-builder/frame.css"},
+      {"from": "assets/frame.js", "to": "static/vendor/jyavani-builder/frame.js"},
+      {"from": "assets/frontend.css", "to": "static/vendor/jyavani-builder/frontend.css"},
+      {"from": "assets/frontend.js", "to": "static/vendor/jyavani-builder/frontend.js"}
+    ]
+  },
+  "admin": {
+    "pages": [
+      {
+        "route": "admin/tools/jyavani-builder",
+        "file": "admin/index.php",
+        "title": "Page Builder",
+        "roles": ["editor", "admin"]
+      }
+    ],
+    "nav": [
+      {
+        "label": "Page Builder",
+        "icon": "puzzle",
+        "page": "admin/tools/jyavani-builder",
+        "parent": "pages",
+        "roles": ["editor", "admin"]
+      }
+    ]
+  }
+}
