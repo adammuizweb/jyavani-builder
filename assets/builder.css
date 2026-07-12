@@ -232,6 +232,14 @@
 .jvb-spacing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .jvb-spacing-grid input { text-align: center; }
 
+.jvb-width-presets { display: flex; gap: 4px; margin-bottom: 6px; }
+.jvb-width-presets button {
+  flex: 1; border: 1px solid #dbe1e8; background: #fff; border-radius: 5px;
+  padding: 5px 0; cursor: pointer; color: #64748b; font-size: 11px; font-weight: 600;
+}
+.jvb-width-presets button:hover { border-color: #94a3b8; }
+.jvb-width-presets button.is-active { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
+
 .jvb-slider-row { display: flex; gap: 8px; align-items: center; }
 .jvb-slider-row input[type=range] { flex: 1; accent-color: #2563eb; }
 .jvb-slider-row output { min-width: 38px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; color: #475569; }

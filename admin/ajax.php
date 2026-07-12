@@ -32,6 +32,7 @@ if ($action === 'frame') {
         $post = $st->fetch(PDO::FETCH_ASSOC) ?: null;
     }
     $layout = $postId > 0 ? (jvb_get_layout($pdo, $postId, 'draft') ?? jvb_empty_layout()) : jvb_empty_layout();
+    $layout = jvb_normalize_layout($layout);
     // Unsaved preview payload (posted by parent before frame reload)
     if (isset($_GET['preview_key'], $_SESSION['jvb_frame'][$_GET['preview_key']])) {
         $layout = jvb_normalize_layout($_SESSION['jvb_frame'][$_GET['preview_key']]);
@@ -53,7 +54,7 @@ if ($action === 'frame') {
 </head>
 <body class="jvb-frame jvb-frame--<?= htmlspecialchars($device, ENT_QUOTES) ?>">
 <?= $html ?>
-<script>window.JVB_FRAME = { postId: <?= $postId ?>, device: '<?= htmlspecialchars($device, ENT_QUOTES) ?>', tokens: <?= $tokensJson ?>, icons: <?= json_encode(jvb_ui_icons_js(['settings', 'arrow-up', 'arrow-down', 'copy', 'bookmark', 'x', 'rows-3']), JSON_UNESCAPED_SLASHES) ?> };</script>
+<script>window.JVB_FRAME = { postId: <?= $postId ?>, device: '<?= htmlspecialchars($device, ENT_QUOTES) ?>', tokens: <?= $tokensJson ?>, icons: <?= json_encode(jvb_ui_icons_js(['settings', 'arrow-up', 'arrow-down', 'copy', 'bookmark', 'x', 'rows-3', 'plus', 'chevron-left', 'chevron-right']), JSON_UNESCAPED_SLASHES) ?> };</script>
 <script src="/static/vendor/jyavani-builder/frontend.js"></script>
 <script src="/static/vendor/jyavani-builder/frame.js"></script>
 </body>

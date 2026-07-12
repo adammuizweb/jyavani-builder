@@ -1011,7 +1011,32 @@
     panelTitle.textContent = 'Column Settings';
     panelBody.innerHTML = '';
     if (S.panelTab === 'content') {
-      panelBody.appendChild(renderField({ key: 'width', label: 'Width (%)', type: 'slider', min: 5, max: 100, unit: '%', devices: true }, node));
+      // width presets
+      var wLabel = document.createElement('label');
+      wLabel.textContent = 'Width';
+      panelBody.appendChild(wLabel);
+      var presets = document.createElement('div');
+      presets.className = 'jvb-width-presets';
+      var curW = (node.settings || {}).width;
+      var curVal = curW && curW.d ? curW.d : 100;
+      [['25', '25%'], ['33', '33%'], ['50', '50%'], ['66', '66%'], ['75', '75%'], ['100', '100%']].forEach(function (p) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = p[1];
+        b.className = +p[0] === curVal ? 'is-active' : '';
+        b.dataset.w = p[0];
+        b.addEventListener('click', function () {
+          pushUndo();
+          var v = { d: +p[0] };
+          node.settings.width = v;
+          $$('button', presets).forEach(function (x) { x.classList.remove('is-active'); });
+          b.classList.add('is-active');
+          markDirty(true); refreshFrame();
+        });
+        presets.appendChild(b);
+      });
+      panelBody.appendChild(presets);
+      panelBody.appendChild(renderField({ key: 'width', label: 'Custom width (%)', type: 'slider', min: 5, max: 100, unit: '%', devices: true }, node));
     } else if (S.panelTab === 'style') {
       panelBody.appendChild(renderField({ key: 'bg_color', label: 'Background', type: 'color' }, node));
       panelBody.appendChild(renderField({ key: 'padding', label: 'Padding', type: 'spacing4', devices: true }, node));
@@ -1051,31 +1076,6 @@
     actions.appendChild(miniAction('Duplicate', function () { duplicateNode(node.id); }, false, 'copy'));
     actions.appendChild(miniAction('Delete', function () { deleteNode(node.id); }, true, 'trash-2'));
     panelBody.appendChild(actions);
-  }
-
-  function addColumnToRow(rowNode) {
-    var f = findNode(rowNode.id);
-    if (!f || f.kind !== 'row') return;
-    var cols = f.node.cols;
-    if (cols.length >= 12) { toast('Max 12 columns', true); return; }
-    pushUndo();
-    var w = Math.floor(100 / (cols.length + 1));
-    cols.forEach(function (c) { c.settings.width = { d: w }; });
-    cols.push(makeColumn(100 - w * cols.length));
-    markDirty(true); refreshFrame();
-  }
-
-  function addRowToSection(secId, append) {
-    var f = findNode(secId);
-    if (!f || f.kind !== 'section') return;
-    pushUndo();
-    var row = makeRow([100]);
-    var rows = f.node.rows;
-    var idx = append !== false ? rows.length : 0;
-    rows.splice(idx, 0, row);
-    markDirty(true); refreshFrame();
-    S.selected = { kind: 'row', id: row.id };
-    renderPanel();
   }
 
   // v2 → v3 migration: section.columns → section.rows[0].cols
@@ -1734,7 +1734,17 @@
         S.panelTab = 'content';
         renderPanel();
         break;
-      case 'add-row': addRowToSection(msg.id, true); break;
+      case 'add-row-above': {
+        var secTop = findNode(msg.id);
+        if (secTop) addRowAt(secTop.node, 0);
+        break;
+      }
+      case 'add-row-below':
+      case 'add-row': {
+        var secBot = findNode(msg.id);
+        if (secBot) addRowAt(secBot.node, -1);
+        break;
+      }
       case 'up': moveSection(msg.id, -1); break;
       case 'down': moveSection(msg.id, 1); break;
       case 'dup': duplicateNode(msg.id); break;
@@ -1751,23 +1761,32 @@
 
   function handleRowAction(msg) {
     switch (msg.act) {
-      case 'add-col': addColumnToRow(findNode(msg.id).node); break;
+      case 'add-col':
+      case 'add-col-at': {
+        var row = findNode(msg.id);
+        if (row && row.kind === 'row') addColumnAt(row.node, msg.index === 'end' ? -1 : parseInt(msg.index, 10));
+        break;
+      }
+      case 'add-col-left': {
+        var rowL = findNode(msg.id);
+        if (rowL && rowL.kind === 'row') addColumnAt(rowL.node, 0);
+        break;
+      }
+      case 'add-col-right': {
+        var rowR = findNode(msg.id);
+        if (rowR && rowR.kind === 'row') addColumnAt(rowR.node, -1);
+        break;
+      }
+      case 'add-row-above':
+      case 'add-row-pos': {
+        var secTop = findNode(msg.id);
+        if (secTop && secTop.kind === 'section') addRowAt(secTop.node, msg.position === 'top' ? 0 : -1);
+        break;
+      }
+      case 'add-row-below':
       case 'add-row-after': {
-        var sec = findNode(msg.id);
-        if (sec && sec.kind === 'section') {
-          pushUndo();
-          var row = makeRow([100]);
-          var rows = sec.node.rows;
-          var idx = rows.length;
-          if (msg.refId) {
-            var ref = findNode(msg.refId);
-            if (ref && ref.kind === 'row') idx = ref.index + 1;
-          }
-          rows.splice(idx, 0, row);
-          markDirty(true); refreshFrame();
-          S.selected = { kind: 'row', id: row.id };
-          renderPanel();
-        }
+        var secBot = findNode(msg.id);
+        if (secBot && secBot.kind === 'section') addRowAt(secBot.node, -1);
         break;
       }
       case 'up': moveNode(msg.id, 'row', -1); break;
@@ -1775,6 +1794,31 @@
       case 'dup': duplicateNode(msg.id); break;
       case 'del': if (confirm('Delete this row and all its columns?')) deleteNode(msg.id); break;
     }
+  }
+
+  function addColumnAt(rowNode, index) {
+    var cols = rowNode.cols || [];
+    if (cols.length >= 12) { toast('Max 12 columns', true); return; }
+    pushUndo();
+    var w = Math.floor(100 / (cols.length + 1));
+    cols.forEach(function (c) { c.settings.width = { d: w }; });
+    var newCol = makeColumn(100 - w * cols.length);
+    if (index === -1 || index >= cols.length) cols.push(newCol);
+    else cols.splice(index, 0, newCol);
+    markDirty(true); refreshFrame();
+    S.selected = { kind: 'col', id: newCol.id };
+    renderPanel();
+  }
+
+  function addRowAt(secNode, index) {
+    pushUndo();
+    var row = makeRow([100]);
+    var rows = secNode.rows || [];
+    if (index === -1 || index >= rows.length) rows.push(row);
+    else rows.splice(index, 0, row);
+    markDirty(true); refreshFrame();
+    S.selected = { kind: 'row', id: row.id };
+    renderPanel();
   }
 
   function moveNode(id, kind, dir) {
