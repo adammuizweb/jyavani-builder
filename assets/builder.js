@@ -1426,9 +1426,8 @@
     $('#jvbRevClose').addEventListener('click', function () { $('#jvbRevDrawer').hidden = true; });
     $('#jvbPageSettings').addEventListener('click', openPageSettings);
     $('#jvbPanelClose').addEventListener('click', function () {
-      S.selected = null;
-      framePost({ t: 'deselect' });
-      renderPanel();
+      // minimize the panel itself; reopen via ◨ toolbar button or by selecting a node
+      if (S.setRightHidden) S.setRightHidden(true);
     });
     $$('#jvbPanelTabs button').forEach(function (b) {
       b.addEventListener('click', function () {
