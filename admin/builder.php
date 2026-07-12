@@ -47,6 +47,7 @@ $boot = [
     <div class="jvb-bar__group">
       <span class="jvb-status" id="jvbStatus" data-status="none">—</span>
       <span class="jvb-savestate" id="jvbSaveState"></span>
+      <button class="jvb-bar__btn" id="jvbToggleRight" title="Toggle settings panel" aria-pressed="false">◨</button>
       <button class="jvb-bar__btn" id="jvbRevisions" title="Revisions">🕓</button>
       <button class="jvb-bar__btn" id="jvbPageSettings" title="Page settings (custom CSS)">⚙</button>
       <a class="jvb-bar__btn" id="jvbPreview" href="<?= htmlspecialchars($permalink, ENT_QUOTES) ?>?jvb_preview=1" target="_blank" rel="noopener" title="Preview draft">👁</a>

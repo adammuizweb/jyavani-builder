@@ -354,7 +354,9 @@ function jvb_column_css(array $s, string $sel): string {
     foreach (['d', 't', 'm'] as $dev) {
         $w = jvb_dev($s['width'] ?? null, $dev, $dev === 'd' ? 100 : null);
         if ($w === null || !is_numeric($w)) continue;
-        $rule = $sel . '{width:' . (float)$w . '%;}';
+        // flex-grow ratio: distributes row width proportionally after the flex
+        // gap is subtracted — width% would overflow the row and wrap columns.
+        $rule = $sel . '{flex-grow:' . (float)$w . ';}';
         if ($dev === 't') $out .= '@media(max-width:' . JVB_BP_TABLET . 'px){' . $rule . '}';
         elseif ($dev === 'm') $out .= '@media(max-width:' . JVB_BP_MOBILE . 'px){' . $rule . '}';
         else $out .= $rule;

@@ -1459,6 +1459,19 @@
       setLeftHidden(!$('#jvbApp').classList.contains('left-hidden'));
     });
     try { if (localStorage.getItem('jvb_left_hidden') === '1') setLeftHidden(true); } catch (e) {}
+
+    // Right settings panel show/hide (persisted); auto-shows on node select
+    var rightBtn = $('#jvbToggleRight');
+    S.setRightHidden = function (hidden) {
+      $('#jvbApp').classList.toggle('right-hidden', hidden);
+      rightBtn.setAttribute('aria-pressed', hidden ? 'true' : 'false');
+      rightBtn.classList.toggle('is-active', hidden);
+      try { localStorage.setItem('jvb_right_hidden', hidden ? '1' : '0'); } catch (e) {}
+    };
+    rightBtn.addEventListener('click', function () {
+      S.setRightHidden(!$('#jvbApp').classList.contains('right-hidden'));
+    });
+    try { if (localStorage.getItem('jvb_right_hidden') === '1') S.setRightHidden(true); } catch (e) {}
   }
 
   function publish() {
@@ -1509,6 +1522,8 @@
         if (f) {
           S.selected = { kind: f.kind, id: msg.id };
           S.panelTab = 'content';
+          // reveal the settings panel if the user hid it
+          if ($('#jvbApp').classList.contains('right-hidden') && S.setRightHidden) S.setRightHidden(false);
           renderPanel();
         }
         break;

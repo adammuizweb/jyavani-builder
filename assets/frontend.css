@@ -33,7 +33,9 @@
 .jvb-section__overlay { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 
 /* ---------- Columns ---------- */
-.jvb-col { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: var(--jvb-gap, 24px); }
+/* flex-grow ratios (generated per column) instead of width% — width% + flex gap
+   overflows the row and wraps columns to the next line. */
+.jvb-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--jvb-gap, 24px); }
 
 /* ---------- Elements ---------- */
 .jvb-el { width: 100%; }
@@ -239,7 +241,7 @@
 }
 @media (max-width: 767px) {
   .jvb-section__inner { flex-direction: column; padding-block: calc(var(--jvb-section-y, 80px) * .5); }
-  .jvb-col { width: 100% !important; }
+  .jvb-col { flex: none !important; width: 100% !important; }
   .jvb-countdown { flex-wrap: wrap; justify-content: center; }
   .jvb-posts { grid-template-columns: 1fr !important; }
   .jvb-gallery { grid-template-columns: repeat(2, 1fr) !important; }

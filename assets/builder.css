@@ -15,6 +15,7 @@
 
 /* Left palette collapsed → canvas takes the full width */
 .jvb-app.left-hidden .jvb-left { display: none; }
+.jvb-app.right-hidden .jvb-panel { display: none; }
 
 /* ---------- Toolbar ---------- */
 .jvb-bar {
