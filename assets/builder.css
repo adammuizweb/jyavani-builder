@@ -133,7 +133,6 @@
 .jvb-canvas__frame-wrap {
   width: 100%; max-width: 100%; min-width: 0; background: #fff;
   box-shadow: 0 2px 16px rgba(15,23,42,.12); border-radius: 8px; overflow: hidden;
-  transition: max-width .25s ease;
 }
 .jvb-canvas__frame-wrap[data-device="tablet"] { max-width: 820px; }
 .jvb-canvas__frame-wrap[data-device="mobile"] { max-width: 390px; }
