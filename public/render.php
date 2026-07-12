@@ -778,17 +778,39 @@ function jvb_render_column(PDO $pdo, array $col, array $ctx): string {
     return '<div' . jvb_node_attrs($s, 'jvb-col') . ' data-jvb="' . jvb_e($id) . '" data-jvb-kind="col">' . $els . '</div>';
 }
 
+function jvb_render_row(PDO $pdo, array $row, array $ctx): string {
+    $s = is_array($row['settings'] ?? null) ? $row['settings'] : [];
+    $id = (string)($row['id'] ?? '');
+    $gap = (int)($s['gap'] ?? 20);
+    $align = in_array($s['align'] ?? '', ['center', 'start', 'end', 'space-between'], true) ? $s['align'] : '';
+    $wrap = ($s['wrap'] ?? '') === 'wrap';
+    $rowCls = 'jvb-row';
+    if ($align === 'center') $rowCls .= ' jvb-row--center';
+    elseif ($align === 'start') $rowCls .= ' jvb-row--start';
+    elseif ($align === 'end') $rowCls .= ' jvb-row--end';
+    elseif ($align === 'space-between') $rowCls .= ' jvb-row--between';
+    if ($wrap) $rowCls .= ' jvb-row--wrap';
+    $cols = '';
+    foreach ((array)($row['cols'] ?? []) as $col) {
+        if (is_array($col)) $cols .= jvb_render_column($pdo, $col, $ctx);
+    }
+    if ($cols === '' && !empty($ctx['canvas'])) {
+        $cols = '<div class="jvb-col__empty">+ Drop elements here</div>';
+    }
+    return '<div' . jvb_node_attrs($s, $rowCls) . ' data-jvb="' . jvb_e($id) . '" data-jvb-kind="row" style="--jvb-row-gap:' . $gap . 'px">' . $cols . '</div>';
+}
+
 function jvb_render_section(PDO $pdo, array $sec, array $ctx): string {
     $s = is_array($sec['settings'] ?? null) ? $sec['settings'] : [];
     $id = (string)($sec['id'] ?? '');
     $layout = in_array($s['layout'] ?? '', ['boxed', 'full', 'stretch'], true) ? $s['layout'] : 'boxed';
 
-    $cols = '';
-    foreach ((array)($sec['columns'] ?? []) as $col) {
-        if (is_array($col)) $cols .= jvb_render_column($pdo, $col, $ctx);
+    $rowsHtml = '';
+    foreach ((array)($sec['rows'] ?? []) as $row) {
+        if (is_array($row)) $rowsHtml .= jvb_render_row($pdo, $row, $ctx);
     }
-    if ($cols === '' && !empty($ctx['canvas'])) {
-        $cols = '<div class="jvb-section__empty">+ Add a column</div>';
+    if ($rowsHtml === '' && !empty($ctx['canvas'])) {
+        $rowsHtml = '<div class="jvb-section__empty">+ Add a row</div>';
     }
 
     $hasOverlay = jvb_color($s['overlay_color'] ?? '') !== '' && (float)($s['overlay_opacity'] ?? 0) > 0;
@@ -809,7 +831,7 @@ function jvb_render_section(PDO $pdo, array $sec, array $ctx): string {
 
     return '<section' . jvb_node_attrs($s, 'jvb-section jvb-section--' . $layout) . ' data-jvb="' . jvb_e($id) . '" data-jvb-kind="section">'
         . $overlay . $shapeTop
-        . '<div class="jvb-section__inner">' . $cols . '</div>'
+        . '<div class="jvb-section__inner">' . $rowsHtml . '</div>'
         . $shapeBottom . '</section>';
 }
 
@@ -828,7 +850,8 @@ function jvb_layout_css(array $layout, array $tokens): string {
             $css .= jvb_section_bg_css($s, $sel);
         }
         $css .= jvb_wrap_css($sel, jvb_node_css($s, $kind === 'element' ? 'element' : $kind));
-        foreach ((array)($node['columns'] ?? []) as $c) if (is_array($c)) $walk($c, 'col');
+        foreach ((array)($node['rows'] ?? []) as $r) if (is_array($r)) $walk($r, 'row');
+        foreach ((array)($node['cols'] ?? []) as $c) if (is_array($c)) $walk($c, 'col');
         foreach ((array)($node['elements'] ?? []) as $e) if (is_array($e)) $walk($e, 'element');
     };
     foreach ((array)($layout['sections'] ?? []) as $sec) {

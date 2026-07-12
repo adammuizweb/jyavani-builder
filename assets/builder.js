@@ -59,13 +59,18 @@
     for (var si = 0; si < secs.length; si++) {
       var sec = secs[si];
       if (sec.id === id) return { kind: 'section', node: sec, arr: secs, index: si };
-      var cols = sec.columns || [];
-      for (var ci = 0; ci < cols.length; ci++) {
-        var col = cols[ci];
-        if (col.id === id) return { kind: 'col', node: col, arr: cols, index: ci, section: sec };
-        var els = col.elements || [];
-        for (var ei = 0; ei < els.length; ei++) {
-          if (els[ei].id === id) return { kind: 'element', node: els[ei], arr: els, index: ei, col: col, section: sec };
+      var rows = sec.rows || [];
+      for (var ri = 0; ri < rows.length; ri++) {
+        var row = rows[ri];
+        if (row.id === id) return { kind: 'row', node: row, arr: rows, index: ri, section: sec };
+        var cols = row.cols || [];
+        for (var ci = 0; ci < cols.length; ci++) {
+          var col = cols[ci];
+          if (col.id === id) return { kind: 'col', node: col, arr: cols, index: ci, row: row, section: sec };
+          var els = col.elements || [];
+          for (var ei = 0; ei < els.length; ei++) {
+            if (els[ei].id === id) return { kind: 'element', node: els[ei], arr: els, index: ei, col: col, row: row, section: sec };
+          }
         }
       }
     }
@@ -76,8 +81,12 @@
     var secs = S.layout.sections;
     if (!secs.length) return null;
     var last = secs[secs.length - 1];
-    if (!last.columns || !last.columns.length) return null;
-    return last.columns[last.columns.length - 1];
+    var rows = last.rows || [];
+    if (!rows.length) return null;
+    var lastRow = rows[rows.length - 1];
+    var cols = lastRow.cols || [];
+    if (!cols.length) return null;
+    return cols[cols.length - 1];
   }
 
   // ───────────────────────── History ─────────────────────────
@@ -194,11 +203,19 @@
     return { id: uid('c'), settings: { width: { d: width || 100 } }, elements: [] };
   }
 
+  function makeRow(widths) {
+    return {
+      id: uid('r'),
+      settings: { gap: 20 },
+      cols: (widths || [100]).map(function (w) { return makeColumn(w); }),
+    };
+  }
+
   function makeSection(widths) {
     return {
       id: uid('s'),
       settings: { layout: 'boxed' },
-      columns: (widths || [100]).map(function (w) { return makeColumn(w); }),
+      rows: [makeRow(widths)],
     };
   }
 
@@ -234,6 +251,8 @@
     var f = findNode(id);
     if (!f) return;
     pushUndo();
+    if (f.kind === 'col' && f.arr.length <= 1) { toast('A row needs at least one column', true); return; }
+    if (f.kind === 'row' && f.section && (f.section.rows || []).length <= 1) { toast('A section needs at least one row', true); return; }
     f.arr.splice(f.index, 1);
     if (S.selected && S.selected.id === id) S.selected = null;
     markDirty(true);
@@ -248,7 +267,8 @@
     var copy = clone(f.node);
     (function rekey(n) {
       n.id = uid(n.id.split('_')[0] || 'n');
-      (n.columns || []).forEach(rekey);
+      (n.rows || []).forEach(rekey);
+      (n.cols || []).forEach(function (c) { rekey(c); (c.elements || []).forEach(rekey); });
       (n.elements || []).forEach(rekey);
     })(copy);
     f.arr.splice(f.index + 1, 0, copy);
@@ -319,6 +339,7 @@
 
     if (f.kind === 'element') renderElementPanel(f.node);
     else if (f.kind === 'col') renderColumnPanel(f.node);
+    else if (f.kind === 'row') renderRowPanel(f.node);
     else renderSectionPanel(f.node);
   }
 
@@ -998,29 +1019,74 @@
       panelBody.appendChild(renderField({ key: 'valign', label: 'Vertical Align', type: 'select', options: { '': 'Top', 'center': 'Middle', 'end': 'Bottom', 'space-between': 'Space Between' } }, node));
     } else {
       panelBody.appendChild(renderField({ key: 'class', label: 'CSS Class', type: 'text' }, node));
+      panelBody.appendChild(renderField({ key: 'css_id', label: 'CSS ID (anchor)', type: 'text' }, node));
       panelBody.appendChild(renderHideOn(node));
     }
     var actions = document.createElement('div');
     actions.style.cssText = 'display:flex;gap:6px;margin-top:20px;padding-top:14px;border-top:1px solid #e2e8f0';
-    actions.appendChild(miniAction('Column', function () { addColumnToSection(node); }, false, 'plus'));
-    actions.appendChild(miniAction('Delete', function () {
-      var f = findNode(node.id);
-      if (f && f.arr.length > 1) deleteNode(node.id);
-      else toast('A section needs at least one column', true);
-    }, true));
+    actions.appendChild(miniAction('Duplicate', function () { duplicateNode(node.id); }, false, 'copy'));
+    actions.appendChild(miniAction('Delete', function () { deleteNode(node.id); }, true));
     panelBody.appendChild(actions);
   }
 
-  function addColumnToSection(colNode) {
-    var f = findNode(colNode.id);
-    if (!f || !f.section) return;
-    var sec = f.section;
-    if (sec.columns.length >= 12) { toast('Max 12 columns', true); return; }
+  // ── Row panel ──
+  function renderRowPanel(node) {
+    panelTitle.textContent = 'Row Settings';
+    panelBody.innerHTML = '';
+    if (S.panelTab === 'content') {
+      panelBody.appendChild(renderField({ key: 'gap', label: 'Gap between columns (px)', type: 'number' }, node));
+      panelBody.appendChild(renderField({ key: 'align', label: 'Vertical Align', type: 'select', options: { '': 'Stretch', 'center': 'Center', 'start': 'Top', 'end': 'Bottom', 'space-between': 'Space Between' } }, node));
+      panelBody.appendChild(renderField({ key: 'wrap', label: 'Wrap on mobile', type: 'select', options: { '': 'No wrap', 'wrap': 'Wrap columns' } }, node));
+    } else if (S.panelTab === 'style') {
+      panelBody.appendChild(renderField({ key: 'bg_color', label: 'Background', type: 'color' }, node));
+      panelBody.appendChild(renderField({ key: 'padding', label: 'Padding', type: 'spacing4', devices: true }, node));
+      panelBody.appendChild(renderField({ key: 'margin', label: 'Margin', type: 'spacing4', devices: true }, node));
+    } else {
+      panelBody.appendChild(renderField({ key: 'class', label: 'CSS Class', type: 'text' }, node));
+      panelBody.appendChild(renderField({ key: 'css_id', label: 'CSS ID (anchor)', type: 'text' }, node));
+    }
+    var actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;gap:6px;margin-top:20px;padding-top:14px;border-top:1px solid #e2e8f0;flex-wrap:wrap';
+    actions.appendChild(miniAction('Add Column', function () { addColumnToRow(node); }, false, 'plus'));
+    actions.appendChild(miniAction('Duplicate', function () { duplicateNode(node.id); }, false, 'copy'));
+    actions.appendChild(miniAction('Delete', function () { deleteNode(node.id); }, true, 'trash-2'));
+    panelBody.appendChild(actions);
+  }
+
+  function addColumnToRow(rowNode) {
+    var f = findNode(rowNode.id);
+    if (!f || f.kind !== 'row') return;
+    var cols = f.node.cols;
+    if (cols.length >= 12) { toast('Max 12 columns', true); return; }
     pushUndo();
-    var w = Math.floor(100 / (sec.columns.length + 1));
-    sec.columns.forEach(function (c) { c.settings.width = { d: w }; });
-    sec.columns.push(makeColumn(100 - w * sec.columns.length));
+    var w = Math.floor(100 / (cols.length + 1));
+    cols.forEach(function (c) { c.settings.width = { d: w }; });
+    cols.push(makeColumn(100 - w * cols.length));
     markDirty(true); refreshFrame();
+  }
+
+  function addRowToSection(secId, append) {
+    var f = findNode(secId);
+    if (!f || f.kind !== 'section') return;
+    pushUndo();
+    var row = makeRow([100]);
+    var rows = f.node.rows;
+    var idx = append !== false ? rows.length : 0;
+    rows.splice(idx, 0, row);
+    markDirty(true); refreshFrame();
+    S.selected = { kind: 'row', id: row.id };
+    renderPanel();
+  }
+
+  // v2 → v3 migration: section.columns → section.rows[0].cols
+  function migrateV2toV3(layout) {
+    (layout.sections || []).forEach(function (sec) {
+      if (!sec.rows && sec.columns) {
+        sec.rows = [{ id: uid('r'), settings: { gap: 20 }, cols: sec.columns }];
+        delete sec.columns;
+      }
+    });
+    return layout;
   }
 
   // ── Section panel ──
@@ -1032,6 +1098,12 @@
     if (S.panelTab === 'content') {
       panelBody.appendChild(renderField({ key: 'layout', label: 'Width Behavior', type: 'select', options: { boxed: 'Boxed (theme container)', full: 'Full (bleed background)', stretch: 'Stretch (edge to edge)' } }, node));
       panelBody.appendChild(renderField({ key: 'min_height', label: 'Min Height (e.g. 80vh, 600px)', type: 'text' }, node));
+      // rows summary
+      var rowCount = (node.rows || []).length;
+      var info = document.createElement('div');
+      info.className = 'jvb-f';
+      info.innerHTML = '<label>Rows</label><div style="color:#64748b;font-size:13px;padding:6px 0">' + rowCount + ' row' + (rowCount !== 1 ? 's' : '') + ' in this section</div>';
+      panelBody.appendChild(info);
     } else if (S.panelTab === 'style') {
       var t = document.createElement('div');
       t.className = 'jvb-panel__section-title'; t.textContent = 'Background';
@@ -1267,9 +1339,12 @@
 
   function rekeySection(sec) {
     sec.id = uid('s');
-    (sec.columns || []).forEach(function (c) {
-      c.id = uid('c');
-      (c.elements || []).forEach(function (e) { e.id = uid('e'); });
+    (sec.rows || []).forEach(function (r) {
+      r.id = uid('r');
+      (r.cols || []).forEach(function (c) {
+        c.id = uid('c');
+        (c.elements || []).forEach(function (e) { e.id = uid('e'); });
+      });
     });
   }
 
@@ -1617,14 +1692,12 @@
       case 'sec-action':
         handleSecAction(msg);
         break;
-      case 'add-row': {
-        var cf = findNode(msg.colId);
-        if (cf) {
-          var secId = cf.section ? cf.section.id : null;
-          insertSection([100], secId);
-        }
+      case 'row-action':
+        handleRowAction(msg);
         break;
-      }
+      case 'row-action':
+        handleRowAction(msg);
+        break;
       case 'insert-section':
         S.pendingInsertAfter = msg.afterId;
         // open sections tab
@@ -1661,6 +1734,7 @@
         S.panelTab = 'content';
         renderPanel();
         break;
+      case 'add-row': addRowToSection(msg.id, true); break;
       case 'up': moveSection(msg.id, -1); break;
       case 'down': moveSection(msg.id, 1); break;
       case 'dup': duplicateNode(msg.id); break;
@@ -1673,6 +1747,46 @@
         break;
       }
     }
+  }
+
+  function handleRowAction(msg) {
+    switch (msg.act) {
+      case 'add-col': addColumnToRow(findNode(msg.id).node); break;
+      case 'add-row-after': {
+        var sec = findNode(msg.id);
+        if (sec && sec.kind === 'section') {
+          pushUndo();
+          var row = makeRow([100]);
+          var rows = sec.node.rows;
+          var idx = rows.length;
+          if (msg.refId) {
+            var ref = findNode(msg.refId);
+            if (ref && ref.kind === 'row') idx = ref.index + 1;
+          }
+          rows.splice(idx, 0, row);
+          markDirty(true); refreshFrame();
+          S.selected = { kind: 'row', id: row.id };
+          renderPanel();
+        }
+        break;
+      }
+      case 'up': moveNode(msg.id, 'row', -1); break;
+      case 'down': moveNode(msg.id, 'row', 1); break;
+      case 'dup': duplicateNode(msg.id); break;
+      case 'del': if (confirm('Delete this row and all its columns?')) deleteNode(msg.id); break;
+    }
+  }
+
+  function moveNode(id, kind, dir) {
+    var f = findNode(id);
+    if (!f) return;
+    var ni = f.index + dir;
+    if (ni < 0 || ni >= f.arr.length) return;
+    pushUndo();
+    f.arr.splice(f.index, 1);
+    f.arr.splice(ni, 0, f.node);
+    markDirty(true);
+    refreshFrame();
   }
 
   // ───────────────────────── Keyboard ─────────────────────────
@@ -1704,10 +1818,11 @@
     if (e.key === 'Delete' && S.selected) {
       e.preventDefault();
       var f = currentNode();
-      if (f && f.kind === 'section') {
+      if (!f) return;
+      if (f.kind === 'section') {
         if (confirm('Delete this section?')) deleteNode(S.selected.id);
-      } else if (f && f.kind === 'col') {
-        if (f.arr.length > 1) deleteNode(S.selected.id);
+      } else if (f.kind === 'row') {
+        if (confirm('Delete this row and all its columns?')) deleteNode(S.selected.id);
       } else {
         deleteNode(S.selected.id);
       }
@@ -1745,6 +1860,7 @@
       var load = results[0], els = results[1];
       if (!load.success) { toast(load.message || 'Failed to load post', true); return; }
       S.layout = load.layout || S.layout;
+      S.layout = migrateV2toV3(S.layout);
       S.status = load.status || 'none';
       if (els.success) {
         (els.elements || []).forEach(function (def) { if (def.type) S.registry[def.type] = def; });

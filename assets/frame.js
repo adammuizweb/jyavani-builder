@@ -1,11 +1,13 @@
-/* Jyavani Page Builder — frame.js (runs INSIDE the canvas iframe)
- * Selection, hover chrome, inline editing, drag-sort. Talks to parent via postMessage. */
+/* Jyavani Page Builder — frame.js (v3.0 intuitive GUI)
+ * Selection, hover chrome, inline editing, drag-sort.
+ * Hierarchy: Section > Row > Column > Element.
+ * Talks to parent via postMessage. */
 (function () {
   'use strict';
 
   var parent = window.parent;
-  var selected = null;   // element node
-  var editing = null;    // contenteditable node
+  var selected = null;
+  var editing = null;
 
   function post(msg) {
     msg.t = msg.t || '';
@@ -19,6 +21,7 @@
   function labelOf(node) {
     var kind = kindOf(node);
     if (kind === 'section') return 'Section';
+    if (kind === 'row') return 'Row';
     if (kind === 'col') return 'Column';
     return node.getAttribute('data-jvb-type') || 'element';
   }
@@ -34,11 +37,13 @@
 
       var kind = kindOf(node);
       var ICONS = (window.JVB_FRAME && window.JVB_FRAME.icons) || {};
+
       if (kind === 'section') {
         var tools = document.createElement('div');
         tools.className = 'jvb-sec-tools';
         tools.innerHTML =
           '<button data-act="settings" title="Settings">' + (ICONS['settings'] || 'S') + '</button>' +
+          '<button data-act="add-row" title="Add row">' + (ICONS['plus'] || '+') + '</button>' +
           '<button data-act="up" title="Move up">' + (ICONS['arrow-up'] || '↑') + '</button>' +
           '<button data-act="down" title="Move down">' + (ICONS['arrow-down'] || '↓') + '</button>' +
           '<button data-act="dup" title="Duplicate">' + (ICONS['copy'] || 'D') + '</button>' +
@@ -46,21 +51,72 @@
           '<button data-act="del" title="Delete" class="danger">' + (ICONS['x'] || '×') + '</button>';
         node.insertBefore(tools, node.firstChild);
       }
+
+      if (kind === 'row') {
+        var tools = document.createElement('div');
+        tools.className = 'jvb-row-tools';
+        tools.innerHTML =
+          '<button data-act="add-col" title="Add column">' + (ICONS['plus'] || '+') + '</button>' +
+          '<button data-act="up" title="Move up">' + (ICONS['arrow-up'] || '↑') + '</button>' +
+          '<button data-act="down" title="Move down">' + (ICONS['arrow-down'] || '↓') + '</button>' +
+          '<button data-act="dup" title="Duplicate row">' + (ICONS['copy'] || 'D') + '</button>' +
+          '<button data-act="del" title="Delete row" class="danger">' + (ICONS['x'] || '×') + '</button>';
+        node.insertBefore(tools, node.firstChild);
+        // column insert spots
+        var cols = node.querySelectorAll(':scope > .jvb-col[data-jvb]');
+        cols.forEach(function (col) {
+          var spot = document.createElement('div');
+          spot.className = 'jvb-col-spot';
+          spot.title = 'Add column here';
+          spot.innerHTML = ICONS['plus'] || '+';
+          var after = col.nextElementSibling && col.nextElementSibling.classList.contains('jvb-col-spot') ? null : col.nextElementSibling;
+          if (after && after.classList.contains('jvb-col-spot')) return;
+          if (after) col.insertAdjacentElement('afterend', spot);
+          else col.parentNode.appendChild(spot);
+        });
+      }
+
       if (kind === 'col') {
-        var add = document.createElement('button');
-        add.className = 'jvb-col__add';
-        add.type = 'button';
-        add.innerHTML = (ICONS['rows-3'] || '') + '<span>Add row here</span>';
-        node.appendChild(add);
+        var addRowBtn = document.createElement('button');
+        addRowBtn.type = 'button';
+        addRowBtn.className = 'jvb-col__add';
+        addRowBtn.title = 'Add element';
+        addRowBtn.innerHTML = (ICONS['rows-3'] || '') + '<span>Add element here</span>';
+        node.appendChild(addRowBtn);
       }
     });
 
-    // insert-section bars
+    // row add spots (between rows in a section)
+    document.querySelectorAll('.jvb-row-spot').forEach(function (b) { b.remove(); });
+    var sections = document.querySelectorAll('.jvb-section');
+    sections.forEach(function (sec) {
+      var rows = sec.querySelectorAll(':scope > .jvb-section__inner > .jvb-row[data-jvb]');
+      rows.forEach(function (row) {
+        var spot = document.createElement('div');
+        spot.className = 'jvb-row-spot';
+        spot.innerHTML = '+';
+        spot.dataset.after = row.getAttribute('data-jvb');
+        var prev = row.previousElementSibling;
+        if (prev && prev.classList.contains('jvb-row-spot')) return;
+        row.insertAdjacentElement('beforebegin', spot);
+      });
+      // after last row
+      var lastRow = rows[rows.length - 1];
+      if (lastRow) {
+        var spotEnd = document.createElement('div');
+        spotEnd.className = 'jvb-row-spot';
+        spotEnd.innerHTML = '+';
+        var inner = sec.querySelector(':scope > .jvb-section__inner');
+        if (inner) inner.appendChild(spotEnd);
+      }
+    });
+
+    // insert-section bars (between sections)
     document.querySelectorAll('.jvb-insert-sec').forEach(function (b) { b.remove(); });
     var page = document.querySelector('.jvb-page');
     if (!page) return;
-    var sections = page.querySelectorAll(':scope > .jvb-section');
-    sections.forEach(function (sec, i) {
+    var allSecs = page.querySelectorAll(':scope > .jvb-section');
+    allSecs.forEach(function (sec, i) {
       var bar = document.createElement('div');
       bar.className = 'jvb-insert-sec';
       bar.innerHTML = '<span>+ Add section</span>';
@@ -215,12 +271,39 @@
       post({ t: 'sec-action', act: toolBtn.dataset.act, id: sec.getAttribute('data-jvb') });
       return;
     }
-    // column add-row button
+    // row tools
+    var rowToolBtn = e.target.closest('.jvb-row-tools button');
+    if (rowToolBtn) {
+      e.preventDefault(); e.stopPropagation();
+      var row = rowToolBtn.closest('[data-jvb]');
+      post({ t: 'row-action', act: rowToolBtn.dataset.act, id: row.getAttribute('data-jvb') });
+      return;
+    }
+    // column add-element button
     var addBtn = e.target.closest('.jvb-col__add');
     if (addBtn) {
       e.preventDefault(); e.stopPropagation();
       var col = addBtn.closest('[data-jvb]');
-      post({ t: 'add-row', colId: col.getAttribute('data-jvb') });
+      post({ t: 'select', id: col.getAttribute('data-jvb'), kind: 'col' });
+      return;
+    }
+    // column insert spot (add column)
+    var colSpot = e.target.closest('.jvb-col-spot');
+    if (colSpot) {
+      e.preventDefault(); e.stopPropagation();
+      var rowNode = colSpot.closest('[data-jvb-kind="row"]');
+      if (rowNode) post({ t: 'row-action', act: 'add-col', id: rowNode.getAttribute('data-jvb') });
+      return;
+    }
+    // row insert spot (add row)
+    var rowSpot = e.target.closest('.jvb-row-spot');
+    if (rowSpot) {
+      e.preventDefault(); e.stopPropagation();
+      var secNode = rowSpot.closest('[data-jvb-kind="section"]');
+      if (secNode) {
+        var afterRowId = rowSpot.dataset.after || null;
+        post({ t: 'row-action', act: 'add-row-after', id: secNode.getAttribute('data-jvb'), refId: afterRowId });
+      }
       return;
     }
     // insert-section bar

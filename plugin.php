@@ -69,6 +69,13 @@ function jvb_normalize_layout($raw): array {
     if (!isset($layout['sections']) || !is_array($layout['sections'])) $layout['sections'] = [];
     if (!isset($layout['settings']) || !is_array($layout['settings'])) $layout['settings'] = [];
     $layout['v'] = JVB_LAYOUT_VERSION;
+    // v2 → v3 migration: section.columns → section.rows[0].cols
+    foreach ($layout['sections'] as &$sec) {
+        if (!isset($sec['rows']) && isset($sec['columns']) && is_array($sec['columns'])) {
+            $sec['rows'] = [['id' => jvb_uid('r'), 'settings' => ['gap' => 20], 'cols' => $sec['columns']]];
+            unset($sec['columns']);
+        }
+    }
     return $layout;
 }
 
