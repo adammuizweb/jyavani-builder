@@ -350,7 +350,7 @@
   // device sub-tabs for a field
   function deviceField(field, node, renderOne) {
     var wrap = document.createElement('div');
-    var devs = [['d', 'Desktop'], ['t', 'Tablet'], ['m', 'Mobile']];
+    var devs = [['d', 'Desktop', 'monitor'], ['t', 'Tablet', 'tablet'], ['m', 'Mobile', 'smartphone']];
     var cur = S.device === 'tablet' ? 't' : (S.device === 'mobile' ? 'm' : 'd');
     var tabs = document.createElement('div');
     tabs.className = 'jvb-align-btns';
@@ -361,8 +361,9 @@
       devs.forEach(function (d) {
         var b = document.createElement('button');
         b.type = 'button';
-        b.textContent = d[1][0];
         b.title = d[1];
+        var ico = S.uiIcons[d[2]];
+        b.innerHTML = ico || d[1][0];
         b.className = d[0] === cur ? 'is-active' : '';
         b.style.flex = 'none';
         b.style.width = '34px';

@@ -290,7 +290,7 @@
 }
 .jvb-editor-btn:hover { border-color: #2563eb; color: #2563eb; }
 
-.jvb-device-note { font-size: 10.5px; color: #94a3b8; margin: -8px 0 12px; }
+.jvb-device-note { font-size: 10.5px; color: #94a3b8; margin: 6px 0 12px; }
 .jvb-panel__section-title { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; font-weight: 700; margin: 18px 0 8px; }
 
 /* ---------- Overlay editors (Quill / CodeMirror) ---------- */
