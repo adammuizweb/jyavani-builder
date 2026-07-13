@@ -113,12 +113,15 @@ body.jvb-frame { min-height: 100vh; }
 
 /* ---------- Empty states ---------- */
 .jvb-col__dropzone {
-  display: inline-block;
+  display: block;
+  width: fit-content;
+  max-width: fit-content;
+  margin: 0 auto;
   padding: 10px;
-  background: rgba(103,232,249,.25);
-  border: 1px solid rgba(34,211,238,.5);
+  background: #a5f3fc;
+  border: 1px solid #22d3ee;
   border-radius: 8px;
-  box-shadow: 0 0 16px rgba(34,211,238,.3), inset 0 0 8px rgba(34,211,238,.15);
+  box-shadow: 0 0 16px rgba(34,211,238,.4), inset 0 0 8px rgba(34,211,238,.2);
 }
 .jvb-col__empty, .jvb-section__empty {
   padding: 16px 24px; text-align: center; color: #0c4a6e; font: 600 13px system-ui, sans-serif;
