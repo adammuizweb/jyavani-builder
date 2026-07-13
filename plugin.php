@@ -137,6 +137,104 @@ function jvb_unpublish(PDO $pdo, int $postId): void {
     jvb_cache_forget($postId);
 }
 
+// ---------------- HTML → Layout import (Architecture B) ----------------
+
+function jvb_html_is_complex(string $html): bool {
+    return (bool)preg_match('/<(script|style|iframe|embed|object|form|svg|canvas|php|link|meta|table|thead|tbody|tfoot|tr|th|td)[\s>]|on[a-z]+\s*=|style\s*=/i', $html);
+}
+
+function jvb_html_node_to_element(DOMNode $node, DOMDocument $doc): ?array {
+    if ($node->nodeType === XML_TEXT_NODE) {
+        $text = trim($node->textContent);
+        if ($text === '') return null;
+        return ['id' => jvb_uid('e'), 'type' => 'richtext', 'settings' => ['content' => '<p>' . htmlspecialchars($text, ENT_QUOTES, 'UTF-8') . '</p>']];
+    }
+    if ($node->nodeType !== XML_ELEMENT_NODE) return null;
+
+    $tag = strtolower($node->nodeName);
+    $html = $doc->saveHTML($node);
+
+    switch ($tag) {
+        case 'h1': case 'h2': case 'h3': case 'h4': case 'h5': case 'h6':
+            return ['id' => jvb_uid('e'), 'type' => 'heading', 'settings' => ['text' => trim($node->textContent), 'tag' => $tag]];
+
+        case 'p': case 'ul': case 'ol': case 'blockquote':
+            return ['id' => jvb_uid('e'), 'type' => 'richtext', 'settings' => ['content' => $html]];
+
+        case 'img':
+            $src = $node->getAttribute('src');
+            if (!$src) return null;
+            return ['id' => jvb_uid('e'), 'type' => 'image', 'settings' => ['src' => $src, 'alt' => $node->getAttribute('alt') ?: '']];
+
+        case 'figure':
+            $imgs = $node->getElementsByTagName('img');
+            if ($imgs->length > 0) {
+                $img = $imgs->item(0);
+                $caps = $node->getElementsByTagName('figcaption');
+                return ['id' => jvb_uid('e'), 'type' => 'image', 'settings' => [
+                    'src' => $img->getAttribute('src'),
+                    'alt' => $img->getAttribute('alt') ?: '',
+                    'caption' => $caps->length > 0 ? trim($caps->item(0)->textContent) : '',
+                ]];
+            }
+            return ['id' => jvb_uid('e'), 'type' => 'html', 'settings' => ['html' => $html]];
+
+        case 'hr':
+            return ['id' => jvb_uid('e'), 'type' => 'divider', 'settings' => []];
+
+        case 'table': case 'iframe': case 'pre':
+            return ['id' => jvb_uid('e'), 'type' => 'html', 'settings' => ['html' => $html]];
+
+        case 'div': case 'section': case 'article': case 'aside':
+        case 'main': case 'nav': case 'header': case 'footer':
+            if (jvb_html_is_complex($html)) {
+                return ['id' => jvb_uid('e'), 'type' => 'html', 'settings' => ['html' => $html]];
+            }
+            return ['id' => jvb_uid('e'), 'type' => 'richtext', 'settings' => ['content' => $html]];
+
+        default:
+            if (jvb_html_is_complex($html)) {
+                return ['id' => jvb_uid('e'), 'type' => 'html', 'settings' => ['html' => $html]];
+            }
+            return ['id' => jvb_uid('e'), 'type' => 'richtext', 'settings' => ['content' => $html]];
+    }
+}
+
+function jvb_html_to_layout(string $html): array {
+    $layout = jvb_empty_layout();
+    $html = trim($html);
+    if ($html === '') return $layout;
+
+    $doc = new DOMDocument();
+    libxml_use_internal_errors(true);
+    $doc->loadHTML('<?xml encoding="UTF-8"><div id="jvb-root">' . $html . '</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+    libxml_clear_errors();
+    $root = $doc->getElementById('jvb-root');
+    if (!$root) return $layout;
+
+    $elements = [];
+    foreach ($root->childNodes as $node) {
+        $el = jvb_html_node_to_element($node, $doc);
+        if ($el !== null) $elements[] = $el;
+    }
+    if (empty($elements)) return $layout;
+
+    $layout['sections'][] = [
+        'id' => jvb_uid('s'),
+        'settings' => [],
+        'rows' => [[
+            'id' => jvb_uid('r'),
+            'settings' => ['gap' => 20],
+            'cols' => [[
+                'id' => jvb_uid('c'),
+                'settings' => ['width' => ['d' => 100]],
+                'elements' => $elements,
+            ]],
+        ]],
+    ];
+    return $layout;
+}
+
 // ---------------- Revisions ----------------
 
 function jvb_add_revision(PDO $pdo, int $postId, array $layout, string $note = '', ?int $uid = null): void {

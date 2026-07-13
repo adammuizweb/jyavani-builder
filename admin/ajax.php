@@ -101,6 +101,7 @@ switch ($action) {
         $layout = jvb_empty_layout();
         $status = 'none';
         $dirty = false;
+        $imported = false;
         if ($row !== null) {
             $status = (string)$row['status'];
             if (!empty($row['draft_json'])) {
@@ -109,6 +110,15 @@ switch ($action) {
             } elseif (!empty($row['published_json'])) {
                 $layout = jvb_normalize_layout($row['published_json']);
             }
+        } else {
+            // No builder layout — import from existing post content
+            $st = $pdo->prepare('SELECT content FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
+            $st->execute([(int)$post['id']]);
+            $content = (string)$st->fetchColumn();
+            if (trim($content) !== '') {
+                $layout = jvb_html_to_layout($content);
+                if (!empty($layout['sections'])) { $imported = true; $dirty = true; }
+            }
         }
         jvb_json([
             'success' => true,
@@ -116,6 +126,7 @@ switch ($action) {
             'layout' => $layout,
             'status' => $status,
             'has_draft' => $dirty,
+            'imported' => $imported,
             'published_at' => $row['published_at'] ?? null,
             'revisions' => count(jvb_get_revisions($pdo, (int)$post['id'])),
         ]);
@@ -138,6 +149,12 @@ switch ($action) {
         }
         if (!jvb_publish($pdo, (int)$post['id'], $uid)) {
             jvb_json(['success' => false, 'message' => 'Nothing to publish (empty draft)'], 400);
+        }
+        // Sync rendered HTML to posts.content for fallback (plugin uninstalled)
+        $pubLayout = jvb_get_layout($pdo, (int)$post['id'], 'published');
+        if ($pubLayout !== null) {
+            $rendered = jvb_render_layout($pdo, $pubLayout, $post);
+            $pdo->prepare('UPDATE `posts` SET content = ? WHERE id = ?')->execute([$rendered, (int)$post['id']]);
         }
         jvb_json(['success' => true, 'published_at' => date('Y-m-d H:i:s')]);
     }

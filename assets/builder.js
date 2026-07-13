@@ -1922,6 +1922,11 @@
       S.layout = load.layout || S.layout;
       S.layout = migrateV2toV3(S.layout);
       S.status = load.status || 'none';
+      if (load.imported) {
+        S.dirty = true;
+        updateStatusBadge();
+        toast('Content imported from editor. Review and save when ready.');
+      }
       if (els.success) {
         (els.elements || []).forEach(function (def) { if (def.type) S.registry[def.type] = def; });
         S.icons = els.icons || [];
