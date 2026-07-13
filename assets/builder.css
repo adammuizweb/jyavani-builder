@@ -368,58 +368,58 @@
 @keyframes jvb-toast-in { from { opacity: 0; transform: translate(-50%, 10px); } }
 
 /* ---------- Post Settings Modal ---------- */
-.jvb-modal-overlay {
+.jvb-post-overlay {
   position: fixed; inset: 0; z-index: 1500;
   background: rgba(0,0,0,.4);
   display: flex; align-items: center; justify-content: center;
   animation: jvb-fade-in .15s ease;
 }
-.jvb-modal-overlay[hidden] { display: none !important; }
+.jvb-post-overlay[hidden] { display: none !important; }
 @keyframes jvb-fade-in { from { opacity: 0; } }
-.jvb-modal {
+.jvb-post-modal {
   background: #1e293b; border: 1px solid #334155; border-radius: 12px;
   width: 420px; max-width: 90vw; max-height: 80vh; overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0,0,0,.5);
   animation: jvb-modal-in .2s ease;
 }
 @keyframes jvb-modal-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
-.jvb-modal__head {
+.jvb-post-modal__head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 18px; border-bottom: 1px solid #334155;
 }
-.jvb-modal__head strong { font-size: 14px; color: #e2e8f0; }
-.jvb-modal__close {
+.jvb-post-modal__head strong { font-size: 14px; color: #e2e8f0; }
+.jvb-post-modal__close {
   background: none; border: none; color: #94a3b8; cursor: pointer;
   padding: 4px; border-radius: 4px; display: flex;
 }
-.jvb-modal__close:hover { color: #e2e8f0; background: #334155; }
-.jvb-modal__body { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
-.jvb-modal__field { display: flex; flex-direction: column; gap: 4px; }
-.jvb-modal__field span { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
-.jvb-modal__field input,
-.jvb-modal__field select {
+.jvb-post-modal__close:hover { color: #e2e8f0; background: #334155; }
+.jvb-post-modal__body { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.jvb-post-modal__field { display: flex; flex-direction: column; gap: 4px; }
+.jvb-post-modal__field span { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.jvb-post-modal__field input,
+.jvb-post-modal__field select {
   background: #0f172a; border: 1px solid #334155; border-radius: 6px;
   color: #e2e8f0; padding: 8px 10px; font-size: 13px; outline: none;
   transition: border-color .15s;
 }
-.jvb-modal__field input:focus,
-.jvb-modal__field select:focus { border-color: #3b82f6; }
-.jvb-modal__foot {
+.jvb-post-modal__field input:focus,
+.jvb-post-modal__field select:focus { border-color: #3b82f6; }
+.jvb-post-modal__foot {
   display: flex; justify-content: flex-end; gap: 8px;
   padding: 14px 18px; border-top: 1px solid #334155;
 }
-.jvb-modal__btn {
+.jvb-post-modal__btn {
   padding: 7px 16px; border-radius: 6px; font-size: 12.5px; font-weight: 600;
   cursor: pointer; border: 1px solid transparent; transition: all .15s;
 }
-.jvb-modal__btn--cancel {
+.jvb-post-modal__btn--cancel {
   background: transparent; border-color: #475569; color: #94a3b8;
 }
-.jvb-modal__btn--cancel:hover { border-color: #64748b; color: #e2e8f0; }
-.jvb-modal__btn--save {
+.jvb-post-modal__btn--cancel:hover { border-color: #64748b; color: #e2e8f0; }
+.jvb-post-modal__btn--save {
   background: #3b82f6; border-color: #3b82f6; color: #fff;
 }
-.jvb-modal__btn--save:hover { background: #2563eb; }
+.jvb-post-modal__btn--save:hover { background: #2563eb; }
 
 /* ---------- Responsive (builder app itself) ---------- */
 @media (max-width: 1100px) {

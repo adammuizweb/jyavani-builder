@@ -124,18 +124,18 @@ $v = max(
     <div class="jvb-drawer__body" id="jvbRevList"></div>
   </div>
   <!-- ── Post Settings modal ── -->
-  <div class="jvb-modal-overlay" id="jvbPostModal" hidden>
-    <div class="jvb-modal">
-      <div class="jvb-modal__head">
+  <div class="jvb-post-overlay" id="jvbPostModal" hidden>
+    <div class="jvb-post-modal">
+      <div class="jvb-post-modal__head">
         <strong>Post Settings</strong>
-        <button class="jvb-modal__close" id="jvbPostModalClose"><?= svg_ico('x', 'jvb-ic', ['style' => 'width:14px;height:14px']) ?></button>
+        <button class="jvb-post-modal__close" id="jvbPostModalClose"><?= svg_ico('x', 'jvb-ic', ['style' => 'width:14px;height:14px']) ?></button>
       </div>
-      <div class="jvb-modal__body">
-        <label class="jvb-modal__field">
+      <div class="jvb-post-modal__body">
+        <label class="jvb-post-modal__field">
           <span>Title</span>
           <input type="text" id="jvbPostTitle" value="<?= htmlspecialchars($post['title'] ?? '', ENT_QUOTES) ?>" placeholder="Post title">
         </label>
-        <label class="jvb-modal__field">
+        <label class="jvb-post-modal__field">
           <span>Type</span>
           <select id="jvbPostType">
             <option value="page"<?= ($post['type'] ?? '') === 'page' ? ' selected' : '' ?>>Page</option>
@@ -143,7 +143,7 @@ $v = max(
             <option value="theme"<?= ($post['type'] ?? 'theme') === 'theme' ? ' selected' : '' ?>>Theme</option>
           </select>
         </label>
-        <label class="jvb-modal__field">
+        <label class="jvb-post-modal__field">
           <span>Status</span>
           <select id="jvbPostStatus">
             <option value="draft"<?= ($post['status'] ?? 'draft') === 'draft' ? ' selected' : '' ?>>Draft</option>
@@ -152,7 +152,7 @@ $v = max(
           </select>
         </label>
         <?php if ($role === 'admin'): ?>
-        <label class="jvb-modal__field" id="jvbPostAuthorWrap">
+        <label class="jvb-post-modal__field" id="jvbPostAuthorWrap">
           <span>Author</span>
           <select id="jvbPostAuthor">
             <?php
@@ -166,9 +166,9 @@ $v = max(
         </label>
         <?php endif; ?>
       </div>
-      <div class="jvb-modal__foot">
-        <button class="jvb-modal__btn jvb-modal__btn--cancel" id="jvbPostModalCancel">Cancel</button>
-        <button class="jvb-modal__btn jvb-modal__btn--save" id="jvbPostModalSave">Save</button>
+      <div class="jvb-post-modal__foot">
+        <button class="jvb-post-modal__btn jvb-post-modal__btn--cancel" id="jvbPostModalCancel">Cancel</button>
+        <button class="jvb-post-modal__btn jvb-post-modal__btn--save" id="jvbPostModalSave">Save</button>
       </div>
     </div>
   </div>
