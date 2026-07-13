@@ -1235,20 +1235,14 @@
       var t = document.createElement('div');
       t.className = 'jvb-panel__section-title'; t.textContent = 'Background';
       panelBody.appendChild(t);
-      panelBody.appendChild(renderField({ key: 'bg_type', label: 'Type', type: 'select', options: { none: 'None', color: 'Color', gradient: 'Gradient', image: 'Image' } }, node));
-      var bgType = s.bg_type || 'none';
-      if (bgType === 'color') {
-        panelBody.appendChild(renderField({ key: 'bg_color', label: 'Color', type: 'color' }, node));
-      } else if (bgType === 'gradient') {
-        panelBody.appendChild(renderField({ key: 'bg_from', label: 'From', type: 'color' }, node));
-        panelBody.appendChild(renderField({ key: 'bg_to', label: 'To', type: 'color' }, node));
-        panelBody.appendChild(renderField({ key: 'bg_angle', label: 'Angle (deg)', type: 'slider', min: 0, max: 360, unit: '°' }, node));
-      } else if (bgType === 'image') {
-        panelBody.appendChild(renderField({ key: 'bg_image', label: 'Image', type: 'media' }, node));
-        panelBody.appendChild(renderField({ key: 'bg_size', label: 'Size', type: 'select', options: { cover: 'Cover', contain: 'Contain', auto: 'Auto' } }, node));
-        panelBody.appendChild(renderField({ key: 'bg_position', label: 'Position', type: 'select', options: { center: 'Center', 'top center': 'Top', 'bottom center': 'Bottom', 'center left': 'Left', 'center right': 'Right' } }, node));
-        panelBody.appendChild(renderField({ key: 'bg_attachment', label: 'Attachment', type: 'select', options: { '': 'Scroll', fixed: 'Fixed (parallax)' } }, node));
-      }
+      panelBody.appendChild(renderField({ key: 'bg_color', label: 'Color', type: 'color' }, node));
+      panelBody.appendChild(renderField({ key: 'bg_from', label: 'Gradient From', type: 'color' }, node));
+      panelBody.appendChild(renderField({ key: 'bg_to', label: 'Gradient To', type: 'color' }, node));
+      panelBody.appendChild(renderField({ key: 'bg_angle', label: 'Gradient Angle', type: 'slider', min: 0, max: 360, unit: '°' }, node));
+      panelBody.appendChild(renderField({ key: 'bg_image', label: 'Image', type: 'media' }, node));
+      panelBody.appendChild(renderField({ key: 'bg_size', label: 'Image Size', type: 'select', options: { cover: 'Cover', contain: 'Contain', auto: 'Auto' } }, node));
+      panelBody.appendChild(renderField({ key: 'bg_position', label: 'Image Position', type: 'select', options: { center: 'Center', 'top center': 'Top', 'bottom center': 'Bottom', 'center left': 'Left', 'center right': 'Right' } }, node));
+      panelBody.appendChild(renderField({ key: 'bg_attachment', label: 'Image Attachment', type: 'select', options: { '': 'Scroll', fixed: 'Fixed (parallax)' } }, node));
       var t2 = document.createElement('div');
       t2.className = 'jvb-panel__section-title'; t2.textContent = 'Overlay';
       panelBody.appendChild(t2);

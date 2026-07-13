@@ -60,7 +60,6 @@ The root layout object:
   "settings": {
     "layout": "boxed",
     "min_height": "",
-    "bg_type": "none",
     "bg_color": "",
     "bg_from": "",
     "bg_to": "",
@@ -92,11 +91,10 @@ The root layout object:
 |-----|------|--------|-------------|
 | `layout` | string | `"boxed"`, `"full"`, `"stretch"` | `boxed` = theme container width; `full` = background bleeds full-width, content boxed; `stretch` = everything edge-to-edge |
 | `min_height` | string | `"80vh"`, `"600px"`, `""` | Minimum section height |
-| `bg_type` | string | `"none"`, `"color"`, `"gradient"`, `"image"` | Background type |
-| `bg_color` | string | token name or hex | Used when `bg_type: "color"` |
-| `bg_from` / `bg_to` | string | token name or hex | Gradient endpoints when `bg_type: "gradient"` |
-| `bg_angle` | number | 0–360 | Gradient angle (degrees) |
-| `bg_image` | string | URL | Background image URL when `bg_type: "image"` |
+| `bg_color` | string | token name or hex | Solid background color. Leave empty for no color. |
+| `bg_from` / `bg_to` | string | token name or hex | Gradient endpoints. Set BOTH for gradient background. |
+| `bg_angle` | number | 0–360 | Gradient angle (degrees). Default 135. |
+| `bg_image` | string | URL | Background image URL. Takes priority over gradient/color. |
 | `bg_size` | string | `"cover"`, `"contain"`, `"auto"` | Background-size |
 | `bg_position` | string | `"center"`, `"top center"`, etc. | Background-position |
 | `bg_attachment` | string | `""`, `"fixed"` | `"fixed"` = parallax |
@@ -607,7 +605,7 @@ A typical landing page follows this section order:
       "id": "s_hero0001",
       "settings": {
         "layout": "full",
-        "bg_type": "gradient",
+        
         "bg_from": "primary",
         "bg_to": "secondary",
         "bg_angle": 135,
@@ -728,7 +726,7 @@ A typical landing page follows this section order:
       "id": "s_cta00001",
       "settings": {
         "layout": "full",
-        "bg_type": "color",
+        
         "bg_color": "secondary",
         "padding": { "d": { "t": 72, "b": 72, "unit": "px" } },
         "animation": "fade-up"

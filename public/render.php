@@ -367,21 +367,27 @@ function jvb_column_css(array $s, string $sel): string {
 }
 
 // Section background + overlay CSS
+// Type is inferred from what's filled: image > gradient > color
 function jvb_section_bg_css(array $s, string $sel): string {
     $out = '';
-    $type = (string)($s['bg_type'] ?? 'none');
-    if ($type === 'color' && ($c = jvb_color($s['bg_color'] ?? '')) !== '') {
-        $out .= $sel . '{background-color:' . $c . ';}';
-    } elseif ($type === 'gradient') {
-        $from = jvb_color($s['bg_from'] ?? '') ?: 'var(--jvb-primary)';
-        $to = jvb_color($s['bg_to'] ?? '') ?: 'var(--jvb-secondary)';
-        $angle = (int)($s['bg_angle'] ?? 135);
-        $out .= $sel . '{background:linear-gradient(' . $angle . 'deg,' . $from . ',' . $to . ');}';
-    } elseif ($type === 'image' && !empty($s['bg_image'])) {
+    $hasImage = !empty($s['bg_image']);
+    $hasGradient = jvb_color($s['bg_from'] ?? '') !== '' && jvb_color($s['bg_to'] ?? '') !== '';
+    $hasColor = jvb_color($s['bg_color'] ?? '') !== '';
+
+    if ($hasImage) {
         $size = in_array($s['bg_size'] ?? '', ['cover', 'contain', 'auto'], true) ? $s['bg_size'] : 'cover';
         $pos = preg_match('/^[a-z0-9% ]+$/i', (string)($s['bg_position'] ?? '')) ? $s['bg_position'] : 'center';
         $att = ($s['bg_attachment'] ?? '') === 'fixed' ? 'fixed' : 'scroll';
         $out .= $sel . '{background-image:url(' . jvb_e($s['bg_image']) . ');background-size:' . $size . ';background-position:' . $pos . ';background-attachment:' . $att . ';}';
+        // bg_color as fallback behind image
+        if ($hasColor) $out .= $sel . '{background-color:' . jvb_color($s['bg_color']) . ';}';
+    } elseif ($hasGradient) {
+        $from = jvb_color($s['bg_from']);
+        $to = jvb_color($s['bg_to']);
+        $angle = (int)($s['bg_angle'] ?? 135);
+        $out .= $sel . '{background:linear-gradient(' . $angle . 'deg,' . $from . ',' . $to . ');}';
+    } elseif ($hasColor) {
+        $out .= $sel . '{background-color:' . jvb_color($s['bg_color']) . ';}';
     }
     // overlay
     if (($oc = jvb_color($s['overlay_color'] ?? '')) !== '' && (float)($s['overlay_opacity'] ?? 0) > 0) {
