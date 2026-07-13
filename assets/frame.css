@@ -113,8 +113,9 @@ body.jvb-frame { min-height: 100vh; }
 
 /* ---------- Empty states ---------- */
 .jvb-col__empty, .jvb-section__empty {
-  padding: 24px; text-align: center; color: #94a3b8; font: 500 12px system-ui, sans-serif;
-  border: 1px dashed #cbd5e1; border-radius: 8px; background: transparent;
+  padding: 10px; text-align: center; color: #0e7490; font: 500 12px system-ui, sans-serif;
+  border: 1px dashed #67e8f9; border-radius: 8px;
+  background: linear-gradient(135deg, rgba(103,232,249,.15), rgba(34,211,238,.08));
 }
 .jvb-canvas-empty {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
