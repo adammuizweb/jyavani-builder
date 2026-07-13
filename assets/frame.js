@@ -89,7 +89,7 @@
       // top spot (before first row)
       var spotTop = document.createElement('div');
       spotTop.className = 'jvb-row-spot jvb-row-spot--top';
-      spotTop.innerHTML = '+';
+      spotTop.innerHTML = '<span class="jvb-spot-btn">+</span>';
       spotTop.title = 'Add row above';
       if (rows.length) rows[0].insertAdjacentElement('beforebegin', spotTop);
       else inner.appendChild(spotTop);
@@ -97,7 +97,7 @@
       rows.forEach(function (row) {
         var spot = document.createElement('div');
         spot.className = 'jvb-row-spot';
-        spot.innerHTML = '+';
+        spot.innerHTML = '<span class="jvb-spot-btn">+</span>';
         spot.dataset.after = row.getAttribute('data-jvb');
         spot.title = 'Add row below';
         row.insertAdjacentElement('afterend', spot);
@@ -113,7 +113,7 @@
       // left edge
       var spotLeft = document.createElement('div');
       spotLeft.className = 'jvb-col-spot jvb-col-spot--left';
-      spotLeft.innerHTML = '+';
+      spotLeft.innerHTML = '<span class="jvb-spot-btn">+</span>';
       spotLeft.title = 'Add column left';
       spotLeft.dataset.idx = '0';
       cols[0].insertAdjacentElement('beforebegin', spotLeft);
@@ -121,7 +121,7 @@
       cols.forEach(function (col, i) {
         var spot = document.createElement('div');
         spot.className = 'jvb-col-spot';
-        spot.innerHTML = '+';
+        spot.innerHTML = '<span class="jvb-spot-btn">+</span>';
         spot.title = 'Add column here';
         spot.dataset.idx = String(i + 1);
         col.insertAdjacentElement('afterend', spot);

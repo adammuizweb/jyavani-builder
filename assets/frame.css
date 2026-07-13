@@ -90,40 +90,54 @@ body.jvb-frame { min-height: 100vh; }
 .jvb-row-spot {
   display: flex; align-items: center; justify-content: center;
   height: 20px; overflow: hidden; cursor: pointer;
-  pointer-events: auto; color: #64748b; font-size: 13px; font-weight: 700;
-  opacity: .35; transition: opacity .15s; line-height: 1;
+  pointer-events: auto; line-height: 1;
   position: relative; z-index: 10;
   border-radius: 4px;
+  opacity: .4; transition: opacity .15s;
   background: repeating-linear-gradient(
     -45deg,
-    rgba(148,163,184,.12),
-    rgba(148,163,184,.12) 4px,
-    rgba(148,163,184,.25) 4px,
-    rgba(148,163,184,.25) 8px
+    rgba(100,116,139,.15),
+    rgba(100,116,139,.15) 4px,
+    rgba(100,116,139,.3) 4px,
+    rgba(100,116,139,.3) 8px
   );
 }
 .jvb-row-spot--top { margin-bottom: 4px; }
 .jvb-section__inner:hover .jvb-row-spot, .jvb-row-spot:hover { opacity: 1; }
-.jvb-row-spot:hover { background: repeating-linear-gradient(-45deg, rgba(148,163,184,.2), rgba(148,163,184,.2) 4px, rgba(148,163,184,.4) 4px, rgba(148,163,184,.4) 8px); }
+.jvb-row-spot:hover { background: repeating-linear-gradient(-45deg, rgba(100,116,139,.25), rgba(100,116,139,.25) 4px, rgba(100,116,139,.45) 4px, rgba(100,116,139,.45) 8px); }
+
 .jvb-col-spot {
   display: flex; align-items: center; justify-content: center;
   width: 8px; cursor: pointer; pointer-events: auto;
-  color: #64748b; font-size: 11px; font-weight: 700;
-  opacity: .35; transition: opacity .15s;
   white-space: nowrap; overflow: hidden;
   flex-shrink: 0; border-radius: 4px;
+  opacity: .4; transition: opacity .15s;
   background: repeating-linear-gradient(
     -45deg,
-    rgba(148,163,184,.12),
-    rgba(148,163,184,.12) 3px,
-    rgba(148,163,184,.25) 3px,
-    rgba(148,163,184,.25) 6px
+    rgba(100,116,139,.15),
+    rgba(100,116,139,.15) 3px,
+    rgba(100,116,139,.3) 3px,
+    rgba(100,116,139,.3) 6px
   );
 }
 .jvb-row[data-jvb]:hover .jvb-col-spot, .jvb-row.jvb-node-sel .jvb-col-spot { opacity: 1; }
-.jvb-col-spot:hover { background: repeating-linear-gradient(-45deg, rgba(148,163,184,.2), rgba(148,163,184,.2) 3px, rgba(148,163,184,.4) 3px, rgba(148,163,184,.4) 6px); }
+.jvb-col-spot:hover { background: repeating-linear-gradient(-45deg, rgba(100,116,139,.25), rgba(100,116,139,.25) 3px, rgba(100,116,139,.45) 3px, rgba(100,116,139,.45) 6px); }
 .jvb-col-spot--left { border-radius: 4px 0 0 4px; }
 .jvb-col-spot--right { border-radius: 0 4px 4px 0; }
+
+/* Circle + button inside spots — high contrast against any background */
+.jvb-spot-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; min-width: 18px;
+  background: #475569; color: #fff;
+  border-radius: 50%; font-size: 13px; font-weight: 700; line-height: 1;
+  box-shadow: 0 1px 4px rgba(0,0,0,.3), 0 0 0 2px rgba(255,255,255,.8);
+  pointer-events: none;
+}
+.jvb-row-spot:hover .jvb-spot-btn, .jvb-col-spot:hover .jvb-spot-btn {
+  background: #1e293b;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4), 0 0 0 2px rgba(255,255,255,.9);
+}
 
 /* ---------- Empty states ---------- */
 .jvb-col__dropzone {
