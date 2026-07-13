@@ -46,17 +46,6 @@ body.jvb-frame { min-height: 100vh; }
 .jvb-sec-tools button:hover { background: #334155; color: #fff; }
 .jvb-sec-tools button.danger:hover { background: #dc2626; }
 
-/* ---------- Column add button ---------- */
-.jvb-col__add {
-  display: none; margin-top: 8px; width: 100%;
-  border: 1px dashed #86efac; background: rgba(34,197,94,.06); color: #16a34a;
-  border-radius: 6px; padding: 6px; font: 600 11px system-ui, sans-serif;
-  cursor: pointer; pointer-events: auto;
-  align-items: center; justify-content: center; gap: 5px;
-}
-.jvb-col[data-jvb]:hover > .jvb-col__add, .jvb-col.jvb-node-sel > .jvb-col__add { display: flex; }
-.jvb-col__add:hover { background: rgba(34,197,94,.14); }
-.jvb-col__add svg { width: 13px; height: 13px; }
 .jvb-sec-tools button svg { width: 12px; height: 12px; display: block; }
 
 /* ---------- Row chrome ---------- */

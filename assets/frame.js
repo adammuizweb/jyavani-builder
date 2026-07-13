@@ -65,15 +65,6 @@
           '<button data-act="del" title="Delete row" class="danger">' + (ICONS['x'] || '×') + '</button>';
         node.insertBefore(tools, node.firstChild);
       }
-
-      if (kind === 'col') {
-        var addBtn = document.createElement('button');
-        addBtn.type = 'button';
-        addBtn.className = 'jvb-col__add';
-        addBtn.title = 'Drop elements here';
-        addBtn.innerHTML = (ICONS['rows-3'] || '') + '<span>Drop elements here</span>';
-        node.appendChild(addBtn);
-      }
     });
 
     // ---------- Row spots (+ between rows) ----------
@@ -250,9 +241,7 @@
       }
     }
     if (!placed) {
-      var addBtn = col.querySelector(':scope > .jvb-col__add');
-      if (addBtn) addBtn.insertAdjacentElement('beforebegin', line);
-      else col.appendChild(line);
+      col.appendChild(line);
     }
   }
 
@@ -294,14 +283,6 @@
       e.preventDefault(); e.stopPropagation();
       var row = rowToolBtn.closest('[data-jvb]');
       post({ t: 'row-action', act: rowToolBtn.dataset.act, id: row.getAttribute('data-jvb') });
-      return;
-    }
-    // column add-element button
-    var addBtn = e.target.closest('.jvb-col__add');
-    if (addBtn) {
-      e.preventDefault(); e.stopPropagation();
-      var col = addBtn.closest('[data-jvb]');
-      post({ t: 'select', id: col.getAttribute('data-jvb'), kind: 'col' });
       return;
     }
     // column insert spot (add column at index)
