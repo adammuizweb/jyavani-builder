@@ -32,12 +32,24 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
 
   function toast(msg, isErr) {
+    if (window.NewNotifToast) {
+      window.NewNotifToast.show({ message: msg, type: isErr ? 'error' : 'info', duration: 2600 });
+      return;
+    }
     var old = $('.jvb-toast'); if (old) old.remove();
     var t = document.createElement('div');
     t.className = 'jvb-toast' + (isErr ? ' err' : '');
     t.textContent = msg;
     document.body.appendChild(t);
     setTimeout(function () { t.remove(); }, 2600);
+  }
+
+  // Async confirm using CMS component (fallback to native)
+  function confirmAsync(opts) {
+    if (window.NewNotifConfirm) {
+      return window.NewNotifConfirm.danger(opts);
+    }
+    return Promise.resolve(confirm(opts.message || opts.title || 'Are you sure?'));
   }
 
   // ───────────────────────── API ─────────────────────────
@@ -283,6 +295,32 @@
     markDirty(true);
     refreshFrame();
     renderPanel();
+  }
+
+  // Delete with undo toast — delete immediately, offer 4s undo window
+  function deleteWithUndo(id, label) {
+    var f = findNode(id);
+    if (!f) return;
+    if (f.kind === 'col' && f.arr.length <= 1) { toast('A row needs at least one column', true); return; }
+    if (f.kind === 'row' && f.section && (f.section.rows || []).length <= 1) { toast('A section needs at least one row', true); return; }
+    deleteNode(id);
+    if (window.NewNotifToast) {
+      var toastEl = window.NewNotifToast.show({ message: label || 'Deleted', type: 'info', duration: 4000 });
+      if (toastEl) {
+        var undoBtn = document.createElement('button');
+        undoBtn.type = 'button';
+        undoBtn.textContent = 'Undo';
+        undoBtn.style.cssText = 'margin-left:8px;padding:2px 10px;border:1px solid #94a3b8;background:transparent;color:#e2e8f0;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600';
+        undoBtn.addEventListener('click', function () {
+          undo();
+          toastEl.remove();
+        });
+        var content = toastEl.querySelector('.newnotif-toast__content');
+        if (content) content.appendChild(undoBtn);
+      }
+    } else {
+      toast(label || 'Deleted');
+    }
   }
 
   function duplicateNode(id) {
@@ -1342,23 +1380,29 @@
     api('template_get', { template_id: tpl.id }).then(function (res) {
       if (!res.success) { toast('Template not found', true); return; }
       var data = res.template.layout;
-      if (tpl.type === 'page') {
-        if (S.layout.sections.length && !confirm('Replace the whole page with this template?')) return;
+      function applyTpl() {
         pushUndo();
-        var layout = data;
-        if (!layout.sections && layout.v) layout = { v: 2, settings: {}, sections: [] };
-        // rekey everything
-        (layout.sections || []).forEach(rekeySection);
-        S.layout.sections = layout.sections || [];
-        S.layout.settings = Object.assign({ custom_css: '' }, layout.settings || {});
-      } else {
-        pushUndo();
-        var sec = data;
-        rekeySection(sec);
-        S.layout.sections.push(sec);
+        if (tpl.type === 'page') {
+          var layout = data;
+          if (!layout.sections && layout.v) layout = { v: 2, settings: {}, sections: [] };
+          (layout.sections || []).forEach(rekeySection);
+          S.layout.sections = layout.sections || [];
+          S.layout.settings = Object.assign({ custom_css: '' }, layout.settings || {});
+        } else {
+          var sec = data;
+          rekeySection(sec);
+          S.layout.sections.push(sec);
+        }
+        markDirty(true); refreshFrame();
+        toast('Template inserted');
       }
-      markDirty(true); refreshFrame();
-      toast('Template inserted');
+      if (tpl.type === 'page' && S.layout.sections.length) {
+        confirmAsync({ title: 'Replace page?', message: 'Replace the whole page with this template?', confirmText: 'Replace' }).then(function (ok) {
+          if (ok) applyTpl();
+        });
+      } else {
+        applyTpl();
+      }
     });
   }
 
@@ -1391,17 +1435,19 @@
         var btn = document.createElement('button');
         btn.className = 'jvb-mini-btn'; btn.textContent = '↺ Restore to draft';
         btn.addEventListener('click', function () {
-          if (!confirm('Restore this revision to the draft? Current draft will be replaced (undo still works).')) return;
-          api('restore_revision', { revision_id: rev.id }).then(function (r) {
-            if (r.success) {
-              pushUndo();
-              S.layout = r.layout;
-              S.selected = null;
-              markDirty(true);
-              refreshFrame(); renderPanel();
-              drawer.hidden = true;
-              toast('Revision restored to draft');
-            } else toast(r.message || 'Failed', true);
+          confirmAsync({ title: 'Restore revision?', message: 'Current draft will be replaced (undo still works).', confirmText: 'Restore' }).then(function (ok) {
+            if (!ok) return;
+            api('restore_revision', { revision_id: rev.id }).then(function (r) {
+              if (r.success) {
+                pushUndo();
+                S.layout = r.layout;
+                S.selected = null;
+                markDirty(true);
+                refreshFrame(); renderPanel();
+                drawer.hidden = true;
+                toast('Revision restored to draft');
+              } else toast(r.message || 'Failed', true);
+            });
           });
         });
         item.appendChild(btn);
@@ -1420,8 +1466,6 @@
     var secGroup = document.createElement('div');
     secGroup.className = 'jvb-pal-group';
     secGroup.innerHTML = '<div class="jvb-pal-group__title">Layout</div>';
-    var secGrid = document.createElement('div');
-    secGrid.className = 'jvb-pal-grid';
     var secBtn = document.createElement('button');
     secBtn.type = 'button';
     secBtn.className = 'jvb-pal-item jvb-pal-item--section';
@@ -1431,8 +1475,7 @@
       $$('.jvb-left__tabs button').forEach(function (x) { x.classList.toggle('is-active', x.dataset.tab === 'sections'); });
       $$('[data-tabpanel]').forEach(function (p) { p.hidden = p.dataset.tabpanel !== 'sections'; });
     });
-    secGrid.appendChild(secBtn);
-    secGroup.appendChild(secGrid);
+    secGroup.appendChild(secBtn);
     host.appendChild(secGroup);
 
     var groups = {};
@@ -1551,12 +1594,13 @@
       if (f && f.kind === 'col') col = f.node;
     }
     if (!col && ds.emptyCanvas) {
-      pushUndo();
-      var sec = makeSection([100]);
-      S.layout.sections.push(sec);
-      col = sec.columns[0];
-      markDirty(true);
-      addElement(ds.type, col, 0);
+      // Guard: require section first — highlight Section button
+      toast('Create a section first');
+      var secBtn = $('.jvb-pal-item--section');
+      if (secBtn) {
+        secBtn.classList.add('is-highlight');
+        setTimeout(function () { secBtn.classList.remove('is-highlight'); }, 2000);
+      }
       return;
     }
     if (col) addElement(ds.type, col, ds.index);
@@ -1828,7 +1872,7 @@
       case 'down': moveSection(msg.id, 1); break;
       case 'dup': duplicateNode(msg.id); break;
       case 'del':
-        if (confirm('Delete this section and all its content?')) deleteNode(msg.id);
+        deleteWithUndo(msg.id, 'Section deleted');
         break;
       case 'tpl': {
         var f = findNode(msg.id);
@@ -1871,7 +1915,7 @@
       case 'up': moveNode(msg.id, 'row', -1); break;
       case 'down': moveNode(msg.id, 'row', 1); break;
       case 'dup': duplicateNode(msg.id); break;
-      case 'del': if (confirm('Delete this row and all its columns?')) deleteNode(msg.id); break;
+      case 'del': deleteWithUndo(msg.id, 'Row deleted'); break;
     }
   }
 
@@ -1886,7 +1930,7 @@
       case 'right': moveNode(msg.id, 'col', 1); break;
       case 'dup': duplicateNode(msg.id); break;
       case 'del':
-        if (confirm('Delete this column and all its elements?')) deleteNode(msg.id);
+        deleteWithUndo(msg.id, 'Column deleted');
         break;
     }
   }
@@ -1958,13 +2002,8 @@
       e.preventDefault();
       var f = currentNode();
       if (!f) return;
-      if (f.kind === 'section') {
-        if (confirm('Delete this section?')) deleteNode(S.selected.id);
-      } else if (f.kind === 'row') {
-        if (confirm('Delete this row and all its columns?')) deleteNode(S.selected.id);
-      } else {
-        deleteNode(S.selected.id);
-      }
+      var labels = { section: 'Section deleted', row: 'Row deleted', col: 'Column deleted', element: 'Element deleted' };
+      deleteWithUndo(S.selected.id, labels[f.kind] || 'Deleted');
       return;
     }
     if (e.key === 'Escape' && S.selected) {

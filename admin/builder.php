@@ -125,6 +125,10 @@ $v = max(
 </div>
 
 <script>window.JVB_BOOT = <?= json_encode($boot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
+<link rel="stylesheet" href="/static/components/toast/toast.css">
+<link rel="stylesheet" href="/static/components/confirm/confirm.css">
+<script src="/static/components/toast/toast.js"></script>
+<script src="/static/components/confirm/confirm.js"></script>
 <script src="/static/js/add/modal-helpers.js"></script>
 <script src="/static/js/add/media-selector.js"></script>
 <script src="/static/js/add/file-selector.js"></script>
