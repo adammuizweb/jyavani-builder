@@ -413,6 +413,13 @@ function jvb_icon_svg(string $name): string {
     return $cache[$name];
 }
 
+// Cache-busting asset URL helper: appends ?v=<filemtime> to force browser refresh.
+function jvb_asset_url(string $file): string {
+    $path = __DIR__ . '/assets/' . $file;
+    $v = is_file($path) ? (int)filemtime($path) : 0;
+    return '/static/vendor/jyavani-builder/' . $file . ($v ? '?v=' . $v : '');
+}
+
 // Icon map for JS chrome (builder + frame), keyed by name → inline SVG.
 function jvb_ui_icons_js(array $names): array {
     $out = [];
@@ -504,8 +511,7 @@ add_filter('layout_slot_html', function (string $html, string $slot = '', array 
 // Conditional frontend JS (animations, lightbox, countdown, tabs, accordion).
 add_action('wp_footer', function (): void {
     if (empty($GLOBALS['_jvb_any_rendered'])) return;
-    $base = '/static/vendor/jyavani-builder';
-    echo '<script src="' . $base . '/frontend.js" defer></script>' . "\n";
+    echo '<script src="' . jvb_asset_url('frontend.js') . '" defer></script>' . "\n";
 });
 
 // ---------------- Frontend AJAX route ----------------

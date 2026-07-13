@@ -892,7 +892,7 @@ function jvb_render_layout(PDO $pdo, array $layout, array $post = [], array $opt
     $baseLink = '';
     if (!$baseLinked && empty($opts['canvas'])) {
         $baseLinked = true;
-        $baseLink = '<link rel="stylesheet" href="/static/vendor/jyavani-builder/frontend.css">' . "\n";
+        $baseLink = '<link rel="stylesheet" href="' . jvb_asset_url('frontend.css') . '">' . "\n";
     }
 
     // jvb-anim-on activates animation initial states only when JS is available.

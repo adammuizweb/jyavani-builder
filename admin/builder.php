@@ -20,8 +20,13 @@ $boot = [
     'adminBase' => defined('ADMIN_BASE_PATH') ? ADMIN_BASE_PATH : '',
     'listUrl'   => jvb_url(),
 ];
+$assetDir = __DIR__ . '/../assets';
+$v = max(
+    (int)@filemtime($assetDir . '/builder.js'),
+    (int)@filemtime($assetDir . '/builder.css')
+);
 ?>
-<link rel="stylesheet" href="/static/vendor/jyavani-builder/builder.css">
+<link rel="stylesheet" href="<?= jvb_asset_url('builder.css') ?>">
 <div class="jvb-app" id="jvbApp">
   <!-- ── Toolbar ── -->
   <header class="jvb-bar">
@@ -114,4 +119,4 @@ $boot = [
 <script src="/static/js/add/modal-helpers.js"></script>
 <script src="/static/js/add/media-selector.js"></script>
 <script src="/static/js/add/file-selector.js"></script>
-<script src="/static/vendor/jyavani-builder/builder.js"></script>
+<script src="<?= jvb_asset_url('builder.js') ?>"></script>

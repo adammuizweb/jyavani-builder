@@ -49,14 +49,14 @@ if ($action === 'frame') {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="/static/vendor/jyavani-builder/frontend.css">
-<link rel="stylesheet" href="/static/vendor/jyavani-builder/frame.css">
+<link rel="stylesheet" href="<?= jvb_asset_url('frontend.css') ?>">
+<link rel="stylesheet" href="<?= jvb_asset_url('frame.css') ?>">
 </head>
 <body class="jvb-frame jvb-frame--<?= htmlspecialchars($device, ENT_QUOTES) ?>">
 <?= $html ?>
 <script>window.JVB_FRAME = { postId: <?= $postId ?>, device: '<?= htmlspecialchars($device, ENT_QUOTES) ?>', tokens: <?= $tokensJson ?>, icons: <?= json_encode(jvb_ui_icons_js(['settings', 'arrow-up', 'arrow-down', 'copy', 'bookmark', 'x', 'rows-3', 'plus', 'chevron-left', 'chevron-right']), JSON_UNESCAPED_SLASHES) ?> };</script>
-<script src="/static/vendor/jyavani-builder/frontend.js"></script>
-<script src="/static/vendor/jyavani-builder/frame.js"></script>
+<script src="<?= jvb_asset_url('frontend.js') ?>"></script>
+<script src="<?= jvb_asset_url('frame.js') ?>"></script>
 </body>
 </html>
 <?php
