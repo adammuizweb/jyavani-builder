@@ -14,7 +14,7 @@ jvb_ensure_schema($pdo);
 $uid = function_exists('current_user_id') ? (int)current_user_id() : 0;
 $role = function_exists('current_user_role') ? current_user_role($pdo) : null;
 if ($uid <= 0) { echo '<div class="jvba-empty">Please log in.</div>'; return; }
-if (!in_array($role, ['editor', 'admin'], true)) { echo '<div class="jvba-empty">Editor or admin role required.</div>'; return; }
+if (!in_array($role, ['author', 'editor', 'admin'], true)) { echo '<div class="jvba-empty">Author, editor or admin role required.</div>'; return; }
 
 $csrf = function_exists('csrf_token') ? csrf_token() : '';
 
@@ -50,12 +50,18 @@ if ($view === 'builder') {
     $postId = (int)($_GET['post_id'] ?? 0);
     $post = ['id' => 0, 'title' => 'New', 'slug' => '', 'type' => 'theme', 'status' => 'draft'];
     if ($postId > 0) {
-        $st = $pdo->prepare('SELECT id, title, slug, type, status FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
+        $st = $pdo->prepare('SELECT id, title, slug, type, status, created_by FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
         $st->execute([$postId]);
         $fetched = $st->fetch(PDO::FETCH_ASSOC);
         if (!is_array($fetched)) {
             jvb_admin_css();
             echo '<div class="jvba"><div class="jvba-empty">Post not found. <a href="' . jvb_url() . '">Back to pages</a></div></div>';
+            return;
+        }
+        // Ownership check (CMS core rule: author/editor only own posts)
+        if ($role !== 'admin' && (int)($fetched['created_by'] ?? 0) !== $uid) {
+            jvb_admin_css();
+            echo '<div class="jvba"><div class="jvba-empty">Access denied: you can only edit your own posts. <a href="' . jvb_url() . '">Back to pages</a></div></div>';
             return;
         }
         $post = $fetched;
@@ -83,6 +89,8 @@ $typeFilter = in_array($_GET['type'] ?? '', ['page', 'article'], true) ? $_GET['
 
 $where = ["p.is_deleted = 0", "p.type IN ('page','article','theme')", "p.status != 'private'"];
 $args = [];
+// CMS core rule: author/editor only see their own posts
+if ($role !== 'admin') { $where[] = 'p.created_by = ?'; $args[] = $uid; }
 if ($typeFilter !== '') { $where[] = 'p.type = ?'; $args[] = $typeFilter; }
 if ($q !== '') { $where[] = '(p.title LIKE ? OR p.slug LIKE ?)'; $args[] = '%' . $q . '%'; $args[] = '%' . $q . '%'; }
 

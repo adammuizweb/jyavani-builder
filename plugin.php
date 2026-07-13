@@ -398,11 +398,24 @@ function jvb_require_editorial(PDO $pdo): array {
         jvb_json(['success' => false, 'message' => 'Not logged in'], 401);
     }
     $role = function_exists('current_user_role') ? current_user_role($pdo) : null;
-    if (!in_array($role, ['editor', 'admin'], true)) {
+    if (!in_array($role, ['author', 'editor', 'admin'], true)) {
         jvb_json(['success' => false, 'message' => 'Insufficient permissions'], 403);
     }
     $uid = function_exists('current_user_id') ? (int)current_user_id() : 0;
     return ['uid' => $uid, 'role' => $role];
+}
+
+// Ownership check: author/editor can only access their own posts.
+// Returns the post row on success, or calls jvb_json(403) and exits.
+function jvb_require_post_owner(PDO $pdo, int $postId, int $uid, string $role): array {
+    $st = $pdo->prepare('SELECT id, title, slug, type, status, created_by FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
+    $st->execute([$postId]);
+    $post = $st->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($post)) jvb_json(['success' => false, 'message' => 'Post not found'], 404);
+    if ($role !== 'admin' && (int)($post['created_by'] ?? 0) !== $uid) {
+        jvb_json(['success' => false, 'message' => 'Access denied: you can only edit your own posts'], 403);
+    }
+    return $post;
 }
 
 function jvb_json(array $payload, int $status = 200): never {

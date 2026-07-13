@@ -33,7 +33,7 @@
         "route": "admin/tools/jyavani-builder",
         "file": "admin/index.php",
         "title": "Jy Builder",
-        "roles": ["editor", "admin"]
+        "roles": ["author", "editor", "admin"]
       }
     ],
     "nav": [
@@ -42,7 +42,7 @@
         "icon": "puzzle",
         "page": "admin/tools/jyavani-builder",
         "parent": "pages",
-        "roles": ["editor", "admin"]
+        "roles": ["author", "editor", "admin"]
       }
     ]
   }

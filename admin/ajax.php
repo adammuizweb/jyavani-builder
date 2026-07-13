@@ -86,12 +86,17 @@ if ($action === 'frame_stash') {
     jvb_json(['success' => true, 'key' => $key]);
 }
 
-// Post lookup helper
-$getPost = static function (int $postId) use ($pdo): ?array {
-    $st = $pdo->prepare('SELECT id, title, slug, type, status FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
+// Post lookup helper — with ownership check (CMS core rule)
+$getPost = static function (int $postId) use ($pdo, $uid, $role): ?array {
+    if ($postId <= 0) return null;
+    $st = $pdo->prepare('SELECT id, title, slug, type, status, created_by FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
     $st->execute([$postId]);
     $r = $st->fetch(PDO::FETCH_ASSOC);
-    return is_array($r) ? $r : null;
+    if (!is_array($r)) return null;
+    if ($role !== 'admin' && (int)($r['created_by'] ?? 0) !== $uid) {
+        jvb_json(['success' => false, 'message' => 'Access denied: you can only edit your own posts'], 403);
+    }
+    return $r;
 };
 
 switch ($action) {
