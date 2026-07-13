@@ -48,13 +48,17 @@ $view = (string)($_GET['view'] ?? 'list');
 
 if ($view === 'builder') {
     $postId = (int)($_GET['post_id'] ?? 0);
-    $st = $pdo->prepare('SELECT id, title, slug, type, status FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
-    $st->execute([$postId]);
-    $post = $st->fetch(PDO::FETCH_ASSOC);
-    if (!is_array($post)) {
-        jvb_admin_css();
-        echo '<div class="jvba"><div class="jvba-empty">Post not found. <a href="' . jvb_url() . '">Back to pages</a></div></div>';
-        return;
+    $post = ['id' => 0, 'title' => 'New', 'slug' => '', 'type' => 'theme', 'status' => 'draft'];
+    if ($postId > 0) {
+        $st = $pdo->prepare('SELECT id, title, slug, type, status FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
+        $st->execute([$postId]);
+        $fetched = $st->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($fetched)) {
+            jvb_admin_css();
+            echo '<div class="jvba"><div class="jvba-empty">Post not found. <a href="' . jvb_url() . '">Back to pages</a></div></div>';
+            return;
+        }
+        $post = $fetched;
     }
     require __DIR__ . '/builder.php';
     return;
@@ -77,7 +81,7 @@ jvb_admin_css();
 $q = trim((string)($_GET['q'] ?? ''));
 $typeFilter = in_array($_GET['type'] ?? '', ['page', 'article'], true) ? $_GET['type'] : '';
 
-$where = ["p.is_deleted = 0", "p.type IN ('page','article')", "p.status != 'private'"];
+$where = ["p.is_deleted = 0", "p.type IN ('page','article','theme')", "p.status != 'private'"];
 $args = [];
 if ($typeFilter !== '') { $where[] = 'p.type = ?'; $args[] = $typeFilter; }
 if ($q !== '') { $where[] = '(p.title LIKE ? OR p.slug LIKE ?)'; $args[] = '%' . $q . '%'; $args[] = '%' . $q . '%'; }
@@ -105,6 +109,7 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
   <div class="jvba-head">
     <h1>Page Builder</h1>
     <div class="jvba-actions">
+      <a class="jvba-btn primary" href="<?= jvb_url(['view' => 'builder']) ?>"><?= svg_ico('plus', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> New</a>
       <a class="jvba-btn" href="<?= jvb_url(['view' => 'templates']) ?>">Templates</a>
       <?php if ($role === 'admin'): ?>
       <a class="jvba-btn" href="<?= jvb_url(['view' => 'tokens']) ?>">Design Tokens</a>

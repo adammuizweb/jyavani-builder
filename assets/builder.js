@@ -158,6 +158,12 @@
       if (res.success) {
         S.dirty = false;
         S.lastSaved = res.saved_at || '';
+        // Standalone: update postId after first save creates the post
+        if (res.post_id && res.post_id !== S.postId) {
+          S.postId = res.post_id;
+          var newUrl = window.location.pathname + '?page=admin/tools/jyavani-builder&view=builder&post_id=' + res.post_id;
+          try { history.replaceState(null, '', newUrl); } catch (e) {}
+        }
         var el = $('#jvbSaveState');
         el.textContent = 'Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         el.className = 'jvb-savestate is-saved';
@@ -1641,6 +1647,11 @@
       if (res.success) {
         S.status = 'published';
         S.dirty = false;
+        if (res.post_id && res.post_id !== S.postId) {
+          S.postId = res.post_id;
+          var newUrl = window.location.pathname + '?page=admin/tools/jyavani-builder&view=builder&post_id=' + res.post_id;
+          try { history.replaceState(null, '', newUrl); } catch (e) {}
+        }
         updateStatusBadge();
         $('#jvbSaveState').textContent = 'Published ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         $('#jvbSaveState').className = 'jvb-savestate is-saved';
@@ -1913,8 +1924,12 @@
       // frame.js posts 'ready' shortly after; nothing else needed here
     });
 
+    var loadPromise = S.postId > 0
+      ? api('load', { post_id: S.postId })
+      : Promise.resolve({ success: true, layout: { v: 2, settings: { custom_css: '' }, sections: [] }, status: 'none', has_draft: false });
+
     Promise.all([
-      api('load', { post_id: S.postId }),
+      loadPromise,
       api('elements'),
     ]).then(function (results) {
       var load = results[0], els = results[1];

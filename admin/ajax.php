@@ -133,15 +133,53 @@ switch ($action) {
     }
 
     case 'save_draft': {
-        $post = $getPost((int)($in['post_id'] ?? 0));
+        $postId = (int)($in['post_id'] ?? 0);
+        // Standalone mode: create post on first save
+        if ($postId <= 0) {
+            $postType = in_array($in['post_type'] ?? '', ['page', 'article', 'theme'], true) ? $in['post_type'] : 'theme';
+            $title = trim((string)($in['title'] ?? ''));
+            if ($title === '') $title = 'Untitled ' . ucfirst($postType);
+            $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $title));
+            $slug = trim($slug, '-') ?: 'untitled-' . bin2hex(random_bytes(3));
+            $baseSlug = $slug; $si = 1;
+            while (true) {
+                $chk = $pdo->prepare('SELECT id FROM posts WHERE slug = ? AND is_deleted = 0 LIMIT 1');
+                $chk->execute([$slug]);
+                if (!$chk->fetchColumn()) break;
+                $slug = $baseSlug . '-' . (++$si);
+            }
+            $pdo->prepare('INSERT INTO posts (title, slug, type, status, content, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())')
+                ->execute([$title, $slug, $postType, 'draft', '', $uid]);
+            $postId = (int)$pdo->lastInsertId();
+        }
+        $post = $getPost($postId);
         if ($post === null) jvb_json(['success' => false, 'message' => 'Post not found'], 404);
         $layout = jvb_normalize_layout($in['layout'] ?? null);
         jvb_save_draft($pdo, (int)$post['id'], $layout, $uid);
-        jvb_json(['success' => true, 'saved_at' => date('Y-m-d H:i:s')]);
+        jvb_json(['success' => true, 'post_id' => (int)$post['id'], 'saved_at' => date('Y-m-d H:i:s')]);
     }
 
     case 'publish': {
-        $post = $getPost((int)($in['post_id'] ?? 0));
+        $postId = (int)($in['post_id'] ?? 0);
+        // Standalone mode: create post first if needed
+        if ($postId <= 0) {
+            $postType = in_array($in['post_type'] ?? '', ['page', 'article', 'theme'], true) ? $in['post_type'] : 'theme';
+            $title = trim((string)($in['title'] ?? ''));
+            if ($title === '') $title = 'Untitled ' . ucfirst($postType);
+            $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $title));
+            $slug = trim($slug, '-') ?: 'untitled-' . bin2hex(random_bytes(3));
+            $baseSlug = $slug; $si = 1;
+            while (true) {
+                $chk = $pdo->prepare('SELECT id FROM posts WHERE slug = ? AND is_deleted = 0 LIMIT 1');
+                $chk->execute([$slug]);
+                if (!$chk->fetchColumn()) break;
+                $slug = $baseSlug . '-' . (++$si);
+            }
+            $pdo->prepare('INSERT INTO posts (title, slug, type, status, content, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())')
+                ->execute([$title, $slug, $postType, 'draft', '', $uid]);
+            $postId = (int)$pdo->lastInsertId();
+        }
+        $post = $getPost($postId);
         if ($post === null) jvb_json(['success' => false, 'message' => 'Post not found'], 404);
         // Publish current editor state if provided, else stored draft
         if (isset($in['layout'])) {
@@ -156,7 +194,7 @@ switch ($action) {
             $rendered = jvb_render_layout($pdo, $pubLayout, $post);
             $pdo->prepare('UPDATE `posts` SET content = ? WHERE id = ?')->execute([$rendered, (int)$post['id']]);
         }
-        jvb_json(['success' => true, 'published_at' => date('Y-m-d H:i:s')]);
+        jvb_json(['success' => true, 'post_id' => (int)$post['id'], 'published_at' => date('Y-m-d H:i:s')]);
     }
 
     case 'unpublish': {

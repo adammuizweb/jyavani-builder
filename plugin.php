@@ -637,3 +637,69 @@ add_action('plugin_uninstall', function (string $name): void {
     $pdo->exec('DROP TABLE IF EXISTS `jvb_templates`');
     if (function_exists('settings_set')) settings_set($pdo, JVB_SETTINGS_TOKENS_KEY, '', 1);
 });
+
+// ---------------- CMS Core Hooks (editor integration) ----------------
+
+// Add Builder radio option to post/page edit forms
+add_filter('editor_mode_options', function (array $modes, array $post): array {
+    $modes['builder'] = 'Builder (visual)';
+    return $modes;
+}, 10, 2);
+
+// Render builder area after Quill/CodeMirror areas
+add_action('editor_mode_after_areas', function (array $post, string $chosenMode): void {
+    $pdo = $GLOBALS['pdo'] ?? null;
+    $postId = (int)($post['id'] ?? 0);
+    $hasBuilderLayout = false;
+    if ($pdo instanceof PDO && $postId > 0) {
+        try {
+            $st = $pdo->prepare('SELECT status FROM jvb_layouts WHERE post_id = ? LIMIT 1');
+            $st->execute([$postId]);
+            $hasBuilderLayout = (bool)$st->fetchColumn();
+        } catch (Throwable $e) {}
+    }
+    $show = ($chosenMode === 'builder' || ($hasBuilderLayout && $chosenMode !== 'quill' && $chosenMode !== 'codemirror'));
+    $adminBase = defined('ADMIN_BASE_PATH') ? ADMIN_BASE_PATH : '';
+    $builderUrl = $adminBase . '/?page=admin/tools/jyavani-builder&view=builder&post_id=' . $postId;
+    $postType = $post['type'] ?? 'post';
+    ?>
+    <div id="builder-area" style="margin-top:.6rem;display:<?= $show ? 'block' : 'none' ?>;">
+      <div style="padding:24px;text-align:center;border:2px dashed #cbd5e1;border-radius:8px;background:#f8fafc;">
+        <?php if ($hasBuilderLayout): ?>
+        <p style="margin:0 0 12px;color:#2563eb;font-weight:600">This <?= htmlspecialchars($postType) ?> is edited with Page Builder</p>
+        <?php else: ?>
+        <p style="margin:0 0 12px;color:#64748b">Open the visual builder to edit this <?= htmlspecialchars($postType) ?>'s layout</p>
+        <?php endif; ?>
+        <a href="<?= htmlspecialchars($builderUrl, ENT_QUOTES) ?>" target="_blank"
+           style="display:inline-block;padding:8px 20px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px">
+          Open in Builder
+        </a>
+        <p style="margin:12px 0 0;font-size:12px;color:#94a3b8">The builder opens in a new tab. Changes are auto-saved as draft.</p>
+      </div>
+    </div>
+    <?php
+}, 10, 2);
+
+// Add jvb_status column to post/page list queries
+add_filter('post_list_select', function (string $select, string $where): string {
+    $pdo = $GLOBALS['pdo'] ?? null;
+    if (!($pdo instanceof PDO)) return $select;
+    try { $pdo->query('SELECT 1 FROM jvb_layouts LIMIT 1'); } catch (Throwable $e) { return $select; }
+    return $select . ', jvb.status AS jvb_status';
+}, 10, 2);
+
+// Add LEFT JOIN jvb_layouts to post/page list queries
+add_filter('post_list_join', function (string $join, string $where): string {
+    $pdo = $GLOBALS['pdo'] ?? null;
+    if (!($pdo instanceof PDO)) return $join;
+    try { $pdo->query('SELECT 1 FROM jvb_layouts LIMIT 1'); } catch (Throwable $e) { return $join; }
+    return $join . ' LEFT JOIN jvb_layouts jvb ON jvb.post_id = p.id';
+}, 10, 2);
+
+// Add BUILDER badge after post title in list pages
+add_filter('post_list_title_after', function (string $html, array $post): string {
+    if (!empty($post['jvb_status'])) {
+        $html .= ' <span style="display:inline-block;padding:1px 6px;background:#dbeafe;color:#2563eb;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.03em;vertical-align:middle;margin-left:4px">BUILDER</span>';
+    }
+    return $html;
+}, 10, 2);

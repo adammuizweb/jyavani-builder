@@ -6,8 +6,8 @@ if (!defined('DASHBOARD_CONTEXT')) exit;
 /** @var PDO $pdo @var array $post @var int $uid @var string $role */
 
 $csrf = function_exists('csrf_token') ? csrf_token() : '';
-$postId = (int)$post['id'];
-$permalink = '/' . rawurlencode((string)$post['slug']) . '/';
+$postId = (int)($post['id'] ?? 0);
+$permalink = $postId > 0 ? '/' . rawurlencode((string)($post['slug'] ?? '')) . '/' : '';
 
 $boot = [
     'postId'    => $postId,
