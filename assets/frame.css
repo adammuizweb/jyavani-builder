@@ -89,12 +89,13 @@ body.jvb-frame { min-height: 100vh; }
 /* ---------- Row / column insert spots ---------- */
 .jvb-row-spot {
   display: flex; align-items: center; justify-content: center;
-  height: 8px; overflow: hidden; cursor: pointer;
-  pointer-events: auto; color: #8b5cf6; font-size: 14px; font-weight: 700;
+  height: 20px; overflow: hidden; cursor: pointer;
+  pointer-events: auto; color: #8b5cf6; font-size: 13px; font-weight: 700;
   opacity: 0; transition: opacity .15s; line-height: 1;
   position: relative; z-index: 10;
+  border-radius: 4px;
 }
-.jvb-row-spot--top { margin-top: 0; }
+.jvb-row-spot--top { margin-bottom: 4px; }
 .jvb-section__inner:hover .jvb-row-spot, .jvb-row-spot:hover { opacity: 1; }
 .jvb-row-spot:hover { background: rgba(139,92,246,.08); }
 .jvb-col-spot {
