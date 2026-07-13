@@ -52,6 +52,7 @@ $v = max(
       <span class="jvb-status" id="jvbStatus" data-status="none">—</span>
       <span class="jvb-savestate" id="jvbSaveState"></span>
       <button class="jvb-bar__btn" id="jvbRevisions" title="Revisions"><?= svg_ico('history', 'jvb-ic') ?></button>
+      <button class="jvb-bar__btn" id="jvbPostSettings" title="Post settings"><?= svg_ico('file-text', 'jvb-ic') ?></button>
       <button class="jvb-bar__btn" id="jvbPageSettings" title="Page settings (custom CSS)"><?= svg_ico('settings', 'jvb-ic') ?></button>
       <a class="jvb-bar__btn" id="jvbPreview" href="<?= htmlspecialchars($permalink, ENT_QUOTES) ?>?jvb_preview=1" target="_blank" rel="noopener" title="Preview draft"><?= svg_ico('eye', 'jvb-ic') ?></a>
       <button class="jvb-bar__btn jvb-bar__btn--publish" id="jvbPublish">Publish</button>
@@ -122,6 +123,56 @@ $v = max(
     <div class="jvb-drawer__head"><strong>Revisions</strong><button id="jvbRevClose"><?= svg_ico('x', 'jvb-ic', ['style' => 'width:14px;height:14px']) ?></button></div>
     <div class="jvb-drawer__body" id="jvbRevList"></div>
   </div>
+  <!-- ── Post Settings modal ── -->
+  <div class="jvb-modal-overlay" id="jvbPostModal" hidden>
+    <div class="jvb-modal">
+      <div class="jvb-modal__head">
+        <strong>Post Settings</strong>
+        <button class="jvb-modal__close" id="jvbPostModalClose"><?= svg_ico('x', 'jvb-ic', ['style' => 'width:14px;height:14px']) ?></button>
+      </div>
+      <div class="jvb-modal__body">
+        <label class="jvb-modal__field">
+          <span>Title</span>
+          <input type="text" id="jvbPostTitle" value="<?= htmlspecialchars($post['title'] ?? '', ENT_QUOTES) ?>" placeholder="Post title">
+        </label>
+        <label class="jvb-modal__field">
+          <span>Type</span>
+          <select id="jvbPostType">
+            <option value="page"<?= ($post['type'] ?? '') === 'page' ? ' selected' : '' ?>>Page</option>
+            <option value="article"<?= ($post['type'] ?? '') === 'article' ? ' selected' : '' ?>>Article</option>
+            <option value="theme"<?= ($post['type'] ?? 'theme') === 'theme' ? ' selected' : '' ?>>Theme</option>
+          </select>
+        </label>
+        <label class="jvb-modal__field">
+          <span>Status</span>
+          <select id="jvbPostStatus">
+            <option value="draft"<?= ($post['status'] ?? 'draft') === 'draft' ? ' selected' : '' ?>>Draft</option>
+            <option value="published"<?= ($post['status'] ?? '') === 'published' ? ' selected' : '' ?>>Published</option>
+            <option value="private"<?= ($post['status'] ?? '') === 'private' ? ' selected' : '' ?>>Private</option>
+          </select>
+        </label>
+        <?php if ($role === 'admin'): ?>
+        <label class="jvb-modal__field" id="jvbPostAuthorWrap">
+          <span>Author</span>
+          <select id="jvbPostAuthor">
+            <?php
+            $users = $pdo->query("SELECT id, name, role FROM users WHERE is_deleted = 0 AND role IN ('admin','editor') ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+            $curAuthor = (int)($post['created_by'] ?? $uid);
+            foreach ($users as $u):
+            ?>
+            <option value="<?= (int)$u['id'] ?>"<?= (int)$u['id'] === $curAuthor ? ' selected' : '' ?>><?= htmlspecialchars($u['name']) ?> (<?= $u['role'] ?>)</option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+        <?php endif; ?>
+      </div>
+      <div class="jvb-modal__foot">
+        <button class="jvb-modal__btn jvb-modal__btn--cancel" id="jvbPostModalCancel">Cancel</button>
+        <button class="jvb-modal__btn jvb-modal__btn--save" id="jvbPostModalSave">Save</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>window.JVB_BOOT = <?= json_encode($boot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>

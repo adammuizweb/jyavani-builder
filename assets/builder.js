@@ -169,7 +169,12 @@
     if (!S.dirty || S.saving) return Promise.resolve();
     S.saving = true;
     $('#jvbSaveState').textContent = 'Saving…';
-    return api('save_draft', { post_id: S.postId, layout: S.layout }).then(function (res) {
+    var payload = { post_id: S.postId, layout: S.layout };
+    if (S.postId <= 0 && S._pendingPostSettings) {
+      payload.title = S._pendingPostSettings.title;
+      payload.post_type = S._pendingPostSettings.type;
+    }
+    return api('save_draft', payload).then(function (res) {
       S.saving = false;
       if (res.success) {
         S.dirty = false;
@@ -179,6 +184,15 @@
           S.postId = res.post_id;
           var newUrl = window.location.pathname + '?page=admin/tools/jyavani-builder&view=builder&post_id=' + res.post_id;
           try { history.replaceState(null, '', newUrl); } catch (e) {}
+          // Apply pending settings (status, author) after post creation
+          if (S._pendingPostSettings) {
+            var sp = S._pendingPostSettings;
+            S._pendingPostSettings = null;
+            var up = { post_id: S.postId };
+            if (sp.status) up.status = sp.status;
+            if (sp.created_by) up.created_by = sp.created_by;
+            api('post_settings', up);
+          }
         }
         var el = $('#jvbSaveState');
         el.textContent = 'Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1340,6 +1354,60 @@
     });
   }
 
+  // ───────────────────────── Post Settings Modal ─────────────────────────
+  var _postSettingsCallback = null;
+
+  function openPostSettings(onSave) {
+    _postSettingsCallback = onSave || null;
+    var modal = $('#jvbPostModal');
+    if (modal) modal.hidden = false;
+  }
+
+  function closePostSettings() {
+    var modal = $('#jvbPostModal');
+    if (modal) modal.hidden = true;
+    _postSettingsCallback = null;
+  }
+
+  function savePostSettings() {
+    var title = ($('#jvbPostTitle') || {}).value || '';
+    var type = ($('#jvbPostType') || {}).value || 'theme';
+    var status = ($('#jvbPostStatus') || {}).value || 'draft';
+    var authorEl = $('#jvbPostAuthor');
+    var payload = { title: title, type: type, status: status };
+    if (authorEl) payload.created_by = parseInt(authorEl.value, 10) || 0;
+
+    if (S.postId > 0) {
+      // Existing post: update settings via AJAX
+      payload.post_id = S.postId;
+      api('post_settings', payload).then(function (res) {
+        if (res.success) {
+          S.post.title = title;
+          S.post.type = type;
+          S.post.status = status;
+          updateToolbarTitle();
+          closePostSettings();
+          toast('Post settings saved', 'success');
+          if (_postSettingsCallback) _postSettingsCallback(payload);
+        } else {
+          toast(res.message || 'Save failed', true);
+        }
+      }).catch(function () { toast('Save failed', true); });
+    } else {
+      // Standalone: stash settings for first save/publish
+      S._pendingPostSettings = payload;
+      closePostSettings();
+      if (_postSettingsCallback) _postSettingsCallback(payload);
+    }
+  }
+
+  function updateToolbarTitle() {
+    var tEl = $('.jvb-bar__title strong');
+    var sEl = $('.jvb-bar__slug');
+    if (tEl && S.post.title) tEl.textContent = S.post.title;
+    if (sEl) sEl.textContent = '/' + (S.post.slug || '') + '/ · ' + (S.post.type || '');
+  }
+
   // ───────────────────────── Templates ─────────────────────────
   function saveSectionAsTemplate(secNode) {
     var o = document.createElement('div');
@@ -1702,6 +1770,13 @@
     $('#jvbRevisions').addEventListener('click', openRevisions);
     $('#jvbRevClose').addEventListener('click', function () { $('#jvbRevDrawer').hidden = true; });
     $('#jvbPageSettings').addEventListener('click', openPageSettings);
+    $('#jvbPostSettings').addEventListener('click', openPostSettings);
+    $('#jvbPostModalClose').addEventListener('click', closePostSettings);
+    $('#jvbPostModalCancel').addEventListener('click', closePostSettings);
+    $('#jvbPostModalSave').addEventListener('click', savePostSettings);
+    $('#jvbPostModal').addEventListener('click', function (e) {
+      if (e.target === this) closePostSettings();
+    });
     $('#jvbPanelClose').addEventListener('click', function () {
       // minimize the panel itself; reopen via ◨ toolbar button or by selecting a node
       if (S.setRightHidden) S.setRightHidden(true);
@@ -1749,6 +1824,18 @@
   }
 
   function publish() {
+    // Standalone mode: require post settings before first publish
+    if (S.postId <= 0) {
+      openPostSettings(function (settings) {
+        S._pendingPostSettings = settings;
+        doPublish(settings);
+      });
+      return;
+    }
+    doPublish();
+  }
+
+  function doPublish(settings) {
     var btn = $('#jvbPublish');
     if (S.dirty) {
       // flush pending autosave first
@@ -1757,7 +1844,12 @@
     }
     btn.classList.add('is-pending');
     btn.textContent = 'Publishing…';
-    api('publish', { post_id: S.postId, layout: S.layout }).then(function (res) {
+    var payload = { post_id: S.postId, layout: S.layout };
+    if (settings) {
+      payload.title = settings.title;
+      payload.post_type = settings.type;
+    }
+    api('publish', payload).then(function (res) {
       btn.classList.remove('is-pending');
       btn.textContent = 'Publish';
       if (res.success) {
@@ -1767,6 +1859,14 @@
           S.postId = res.post_id;
           var newUrl = window.location.pathname + '?page=admin/tools/jyavani-builder&view=builder&post_id=' + res.post_id;
           try { history.replaceState(null, '', newUrl); } catch (e) {}
+          // Apply status/author settings after creation
+          if (settings) {
+            var up = { post_id: S.postId };
+            if (settings.status) up.status = settings.status;
+            if (settings.created_by) up.created_by = settings.created_by;
+            api('post_settings', up);
+          }
+          S._pendingPostSettings = null;
         }
         updateStatusBadge();
         $('#jvbSaveState').textContent = 'Published ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

@@ -75,6 +75,7 @@ if (!jvb_csrf_ok()) {
 $in = jvb_input();
 $action = (string)($in['action'] ?? '');
 $uid = $me['uid'];
+$role = $me['role'] ?? 'editor';
 
 // Frame preview stash: parent posts layout, gets a key, then loads frame with it (avoids long URLs)
 if ($action === 'frame_stash') {
@@ -195,6 +196,30 @@ switch ($action) {
             $pdo->prepare('UPDATE `posts` SET content = ? WHERE id = ?')->execute([$rendered, (int)$post['id']]);
         }
         jvb_json(['success' => true, 'post_id' => (int)$post['id'], 'published_at' => date('Y-m-d H:i:s')]);
+    }
+
+    case 'post_settings': {
+        $post = $getPost((int)($in['post_id'] ?? 0));
+        if ($post === null) jvb_json(['success' => false, 'message' => 'Post not found'], 404);
+        $sets = []; $vals = [];
+        if (isset($in['title'])) {
+            $t = trim((string)$in['title']);
+            if ($t !== '') { $sets[] = 'title = ?'; $vals[] = $t; }
+        }
+        if (isset($in['type']) && in_array($in['type'], ['page', 'article', 'theme'], true)) {
+            $sets[] = 'type = ?'; $vals[] = $in['type'];
+        }
+        if (isset($in['status']) && in_array($in['status'], ['draft', 'published', 'private'], true)) {
+            $sets[] = 'status = ?'; $vals[] = $in['status'];
+        }
+        if (isset($in['created_by']) && $role === 'admin') {
+            $cb = (int)$in['created_by'];
+            if ($cb > 0) { $sets[] = 'created_by = ?'; $vals[] = $cb; }
+        }
+        if (!$sets) jvb_json(['success' => false, 'message' => 'Nothing to update'], 400);
+        $vals[] = (int)$post['id'];
+        $pdo->prepare('UPDATE `posts` SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($vals);
+        jvb_json(['success' => true]);
     }
 
     case 'unpublish': {
