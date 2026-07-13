@@ -310,8 +310,10 @@ function jvb_node_css(array $s, string $kind): array {
     $rules = ['d' => '', 't' => '', 'm' => ''];
     foreach (['d', 't', 'm'] as $dev) {
         $r = '';
-        // spacing
-        $r .= jvb_css_spacing($s['spacing']['padding'] ?? ($s['padding'] ?? null), 'padding', $dev);
+        // spacing — section padding goes to .jvb-section__inner (handled in jvb_layout_css)
+        if ($kind !== 'section') {
+            $r .= jvb_css_spacing($s['spacing']['padding'] ?? ($s['padding'] ?? null), 'padding', $dev);
+        }
         $r .= jvb_css_spacing($s['spacing']['margin'] ?? ($s['margin'] ?? null), 'margin', $dev);
         // alignment
         $al = jvb_dev($s['align'] ?? null, $dev);
@@ -848,6 +850,16 @@ function jvb_layout_css(array $layout, array $tokens): string {
         }
         if ($kind === 'section') {
             $css .= jvb_section_bg_css($s, $sel);
+            // Section padding goes to .jvb-section__inner (overrides default 80px/24px)
+            $innerSel = $sel . '>.jvb-section__inner';
+            foreach (['d', 't', 'm'] as $dev) {
+                $padRule = jvb_css_spacing($s['padding'] ?? null, 'padding', $dev);
+                if ($padRule !== '') {
+                    if ($dev === 't') $css .= '@media(max-width:' . JVB_BP_TABLET . 'px){' . $innerSel . '{' . $padRule . '}}';
+                    elseif ($dev === 'm') $css .= '@media(max-width:' . JVB_BP_MOBILE . 'px){' . $innerSel . '{' . $padRule . '}}';
+                    else $css .= $innerSel . '{' . $padRule . '}';
+                }
+            }
         }
         $css .= jvb_wrap_css($sel, jvb_node_css($s, $kind === 'element' ? 'element' : $kind));
         foreach ((array)($node['rows'] ?? []) as $r) if (is_array($r)) $walk($r, 'row');

@@ -253,7 +253,10 @@
     for (var i = 0; i < n; i++) rows.push(makeRow(widths));
     return {
       id: uid('s'),
-      settings: { layout: 'boxed' },
+      settings: {
+        layout: 'boxed',
+        padding: { d: { t: 80, b: 80, l: 24, r: 24, unit: 'px' }, m: { t: 48, b: 48, l: 16, r: 16, unit: 'px' } },
+      },
       rows: rows,
     };
   }
@@ -1255,7 +1258,7 @@
       var t3 = document.createElement('div');
       t3.className = 'jvb-panel__section-title'; t3.textContent = 'Spacing & Motion';
       panelBody.appendChild(t3);
-      panelBody.appendChild(renderField({ key: 'padding', label: 'Padding', type: 'spacing4', devices: true }, node));
+      panelBody.appendChild(renderField({ key: 'padding', label: 'Content Padding (set 0 for edge-to-edge)', type: 'spacing4', devices: true }, node));
       panelBody.appendChild(renderField({ key: 'animation', label: 'Entrance Animation', type: 'select', options: { '': 'None', 'fade': 'Fade', 'fade-up': 'Fade Up', 'fade-down': 'Fade Down', 'fade-left': 'Fade Left', 'fade-right': 'Fade Right', 'zoom-in': 'Zoom In', 'flip-up': 'Flip Up' } }, node));
 
       var t4 = document.createElement('div');
