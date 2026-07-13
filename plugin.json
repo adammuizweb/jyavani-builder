@@ -1,9 +1,9 @@
 {
   "name": "jyavani-builder",
   "version": "2.1.0",
-  "title": "Jyavani Page Builder",
+  "title": "Jy Builder",
   "icon": "icon.svg",
-  "description": "Professional drag-and-drop page builder for Jyavani CMS: WYSIWYG iframe canvas with inline editing, sections/columns/elements tree, design tokens, responsive per-device controls, draft/publish workflow, revisions, template library, entrance animations, shape dividers, dynamic posts grid, and native Form Builder integration.",
+  "description": "Visual drag-and-drop builder for Jyavani CMS — works with articles, pages, and themes. WYSIWYG iframe canvas with inline editing, sections/rows/columns/elements tree, design tokens, responsive per-device controls, draft/publish workflow, revisions, template library, entrance animations, shape dividers, dynamic posts grid, and native Form Builder integration.",
   "author": "Adam Muiz",
   "author_uri": "https://jyavani.com/member/adammuiz/",
   "plugin_uri": "https://github.com/adammuizweb/jyavani-builder",
@@ -32,13 +32,13 @@
       {
         "route": "admin/tools/jyavani-builder",
         "file": "admin/index.php",
-        "title": "Page Builder",
+        "title": "Jy Builder",
         "roles": ["editor", "admin"]
       }
     ],
     "nav": [
       {
-        "label": "Page Builder",
+        "label": "Jy Builder",
         "icon": "puzzle",
         "page": "admin/tools/jyavani-builder",
         "parent": "pages",

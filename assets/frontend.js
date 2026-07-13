@@ -1,4 +1,4 @@
-/* Jyavani Page Builder — frontend.js (v2.0)
+/* Jy Builder — frontend.js (v3.0)
  * Vanilla, no dependencies. Animations, counter, countdown, tabs, video facade, lightbox. */
 (function () {
   'use strict';

@@ -1,5 +1,5 @@
 <?php
-// /plugins/jyavani-builder/plugin.php — Jyavani Page Builder v2.0 (foundation)
+// /plugins/jyavani-builder/plugin.php — Jy Builder v3.0
 declare(strict_types=1);
 
 // Loaded on every request (admin + frontend) via plugin_load_active(). No context guard here —
@@ -673,7 +673,7 @@ add_action('editor_mode_after_areas', function (array $post, string $chosenMode)
     <div id="builder-area" style="margin-top:.6rem;display:<?= $show ? 'block' : 'none' ?>;">
       <div style="padding:24px;text-align:center;border:2px dashed #cbd5e1;border-radius:8px;background:#f8fafc;">
         <?php if ($hasBuilderLayout): ?>
-        <p style="margin:0 0 12px;color:#2563eb;font-weight:600">This <?= htmlspecialchars($postType) ?> is edited with Page Builder</p>
+        <p style="margin:0 0 12px;color:#2563eb;font-weight:600">This <?= htmlspecialchars($postType) ?> is edited with Jy Builder</p>
         <?php else: ?>
         <p style="margin:0 0 12px;color:#64748b">Open the visual builder to edit this <?= htmlspecialchars($postType) ?>'s layout</p>
         <?php endif; ?>

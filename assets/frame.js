@@ -1,4 +1,4 @@
-/* Jyavani Page Builder — frame.js (v3.0 intuitive GUI)
+/* Jy Builder — frame.js (v3.0 intuitive GUI)
  * Selection, hover chrome, inline editing, drag-sort.
  * Hierarchy: Section > Row > Column > Element.
  * Talks to parent via postMessage. */

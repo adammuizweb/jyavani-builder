@@ -1,4 +1,4 @@
-/* Jyavani Page Builder — builder.js (v2.0 engine)
+/* Jy Builder — builder.js (v3.0 engine)
  * Full-screen builder app: state tree, history, iframe WYSIWYG, generic settings panel. */
 (function () {
   'use strict';

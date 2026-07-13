@@ -1,5 +1,5 @@
 <?php
-// /plugins/jyavani-builder/admin/index.php — Page Builder admin (list + dispatch)
+// /plugins/jyavani-builder/admin/index.php — Jy Builder admin (list + dispatch)
 declare(strict_types=1);
 
 if (!defined('DASHBOARD_CONTEXT')) exit;
@@ -107,7 +107,7 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
 <div class="jvba">
   <?php if ($homeMsg !== ''): ?><div class="jvba-card" style="margin-bottom:.75rem"><?= htmlspecialchars($homeMsg, ENT_QUOTES) ?></div><?php endif; ?>
   <div class="jvba-head">
-    <h1>Page Builder</h1>
+    <h1>Jy Builder</h1>
     <div class="jvba-actions">
       <a class="jvba-btn primary" href="<?= jvb_url(['view' => 'builder']) ?>"><?= svg_ico('plus', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> New</a>
       <a class="jvba-btn" href="<?= jvb_url(['view' => 'templates']) ?>">Templates</a>
