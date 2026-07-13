@@ -219,18 +219,25 @@ function jvb_html_to_layout(string $html): array {
     }
     if (empty($elements)) return $layout;
 
-    $layout['sections'][] = [
-        'id' => jvb_uid('s'),
-        'settings' => [],
-        'rows' => [[
+    // Each element gets its own row (1 col, 100%) so user can
+    // add columns to any row for multi-column layouts.
+    $rows = [];
+    foreach ($elements as $el) {
+        $rows[] = [
             'id' => jvb_uid('r'),
             'settings' => ['gap' => 20],
             'cols' => [[
                 'id' => jvb_uid('c'),
                 'settings' => ['width' => ['d' => 100]],
-                'elements' => $elements,
+                'elements' => [$el],
             ]],
-        ]],
+        ];
+    }
+
+    $layout['sections'][] = [
+        'id' => jvb_uid('s'),
+        'settings' => [],
+        'rows' => $rows,
     ];
     return $layout;
 }
