@@ -74,10 +74,19 @@ $v = max(
       </div>
       <div class="jvb-palette" id="jvbPalette" data-tabpanel="elements"></div>
       <div class="jvb-sections" id="jvbSections" data-tabpanel="sections" hidden>
-        <p class="jvb-left__hint">Click to append a section:</p>
-        <div class="jvb-sec-grid" id="jvbSecGrid"></div>
-        <p class="jvb-left__hint">Structure:</p>
-        <button class="jvb-sec-add" id="jvbAddSection">+ Empty section</button>
+        <p class="jvb-left__hint">Start with a section:</p>
+        <div class="jvb-sec-group">
+          <div class="jvb-sec-group__title">Quick Start</div>
+          <div class="jvb-sec-grid" id="jvbSecQuick"></div>
+        </div>
+        <div class="jvb-sec-group">
+          <div class="jvb-sec-group__title">Columns (1 row)</div>
+          <div class="jvb-sec-grid" id="jvbSecCols"></div>
+        </div>
+        <div class="jvb-sec-group">
+          <div class="jvb-sec-group__title">Rows (1 column each)</div>
+          <div class="jvb-sec-grid" id="jvbSecRows"></div>
+        </div>
       </div>
       <div class="jvb-templates" id="jvbTemplates" data-tabpanel="templates" hidden>
         <div id="jvbTplList"></div>

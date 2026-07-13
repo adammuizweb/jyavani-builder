@@ -217,11 +217,14 @@
     };
   }
 
-  function makeSection(widths) {
+  function makeSection(widths, rowCount) {
+    var rows = [];
+    var n = rowCount || 1;
+    for (var i = 0; i < n; i++) rows.push(makeRow(widths));
     return {
       id: uid('s'),
       settings: { layout: 'boxed' },
-      rows: [makeRow(widths)],
+      rows: rows,
     };
   }
 
@@ -251,6 +254,22 @@
     S.selected = { kind: 'section', id: sec.id };
     renderPanel();
     toast('Section added — drag elements from the left panel');
+  }
+
+  function insertSectionMultiRow(rowCount, afterId) {
+    pushUndo();
+    var sec = makeSection([100], rowCount);
+    var secs = S.layout.sections;
+    if (afterId) {
+      var f = findNode(afterId);
+      if (f) secs.splice(f.index + 1, 0, sec);
+      else secs.push(sec);
+    } else secs.push(sec);
+    markDirty(true);
+    refreshFrame();
+    S.selected = { kind: 'section', id: sec.id };
+    renderPanel();
+    toast('Section with ' + rowCount + ' rows added');
   }
 
   function deleteNode(id) {
@@ -1396,6 +1415,26 @@
   function buildPalette() {
     var host = $('#jvbPalette');
     host.innerHTML = '';
+
+    // Sections quick-access at top — teaches hierarchy (section first)
+    var secGroup = document.createElement('div');
+    secGroup.className = 'jvb-pal-group';
+    secGroup.innerHTML = '<div class="jvb-pal-group__title">Layout</div>';
+    var secGrid = document.createElement('div');
+    secGrid.className = 'jvb-pal-grid';
+    var secBtn = document.createElement('button');
+    secBtn.type = 'button';
+    secBtn.className = 'jvb-pal-item jvb-pal-item--section';
+    secBtn.innerHTML = (S.iconSvgs['layout-template'] || S.iconSvgs['grid-3x3'] || '') + '<span>Section</span>';
+    secBtn.title = 'Add a section (rows & columns)';
+    secBtn.addEventListener('click', function () {
+      $$('.jvb-left__tabs button').forEach(function (x) { x.classList.toggle('is-active', x.dataset.tab === 'sections'); });
+      $$('[data-tabpanel]').forEach(function (p) { p.hidden = p.dataset.tabpanel !== 'sections'; });
+    });
+    secGrid.appendChild(secBtn);
+    secGroup.appendChild(secGrid);
+    host.appendChild(secGroup);
+
     var groups = {};
     Object.keys(S.registry).forEach(function (type) {
       var def = S.registry[type];
@@ -1524,7 +1563,20 @@
   }
 
   function buildSectionPresets() {
-    var presets = [
+    // Quick start: empty section (1 row, 1 col)
+    var quickGrid = $('#jvbSecQuick');
+    quickGrid.innerHTML = '';
+    var emptyBtn = document.createElement('button');
+    emptyBtn.type = 'button'; emptyBtn.className = 'jvb-sec-preset jvb-sec-preset--empty';
+    emptyBtn.innerHTML = '<div class="jvb-sec-preset__icon"><i style="--f:100"></i></div><span>Empty</span>';
+    emptyBtn.addEventListener('click', function () {
+      var after = S.pendingInsertAfter; S.pendingInsertAfter = null;
+      insertSection([100], after);
+    });
+    quickGrid.appendChild(emptyBtn);
+
+    // Column layouts (1 row, N columns)
+    var colPresets = [
       { label: '100', widths: [100] },
       { label: '50/50', widths: [50, 50] },
       { label: '33×3', widths: [33.33, 33.33, 33.34] },
@@ -1536,9 +1588,9 @@
       { label: '20×5', widths: [20, 20, 20, 20, 20] },
       { label: '16×6', widths: [16.66, 16.66, 16.66, 16.66, 16.66, 16.7] },
     ];
-    var grid = $('#jvbSecGrid');
-    grid.innerHTML = '';
-    presets.forEach(function (p) {
+    var colGrid = $('#jvbSecCols');
+    colGrid.innerHTML = '';
+    colPresets.forEach(function (p) {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'jvb-sec-preset';
       var icon = '<div class="jvb-sec-preset__icon">';
@@ -1546,16 +1598,32 @@
       icon += '</div><span>' + p.label + '</span>';
       b.innerHTML = icon;
       b.addEventListener('click', function () {
-        var after = S.pendingInsertAfter;
-        S.pendingInsertAfter = null;
+        var after = S.pendingInsertAfter; S.pendingInsertAfter = null;
         insertSection(p.widths, after);
       });
-      grid.appendChild(b);
+      colGrid.appendChild(b);
     });
-    $('#jvbAddSection').addEventListener('click', function () {
-      var after = S.pendingInsertAfter;
-      S.pendingInsertAfter = null;
-      insertSection([100], after);
+
+    // Row layouts (N rows, 1 column each)
+    var rowPresets = [
+      { label: '1 Row', rows: 1 },
+      { label: '2 Rows', rows: 2 },
+      { label: '3 Rows', rows: 3 },
+    ];
+    var rowGrid = $('#jvbSecRows');
+    rowGrid.innerHTML = '';
+    rowPresets.forEach(function (p) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'jvb-sec-preset jvb-sec-preset--rows';
+      var icon = '<div class="jvb-sec-preset__icon jvb-sec-preset__icon--rows">';
+      for (var i = 0; i < p.rows; i++) icon += '<i style="--f:100"></i>';
+      icon += '</div><span>' + p.label + '</span>';
+      b.innerHTML = icon;
+      b.addEventListener('click', function () {
+        var after = S.pendingInsertAfter; S.pendingInsertAfter = null;
+        insertSectionMultiRow(p.rows, after);
+      });
+      rowGrid.appendChild(b);
     });
   }
 

@@ -122,6 +122,8 @@
 .jvb-pal-item:hover svg { color: #2563eb; }
 
 /* Sections tab */
+.jvb-sec-group { margin-bottom: 12px; }
+.jvb-sec-group__title { font: 600 11px/1.4 system-ui, sans-serif; color: #64748b; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
 .jvb-sec-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 0 2px; }
 .jvb-sec-preset {
   border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer;
@@ -132,12 +134,11 @@
 .jvb-sec-preset__icon i { background: #cbd5e1; border-radius: 2px; flex: var(--f, 1); }
 .jvb-sec-preset:hover .jvb-sec-preset__icon i { background: #2563eb; }
 .jvb-sec-preset span { font-size: 10px; color: #64748b; }
-.jvb-sec-add {
-  margin: 4px 2px; width: calc(100% - 4px);
-  border: 1px dashed #cbd5e1; background: #f8fafc; color: #475569;
-  border-radius: 8px; padding: 10px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600;
-}
-.jvb-sec-add:hover { border-color: #2563eb; color: #2563eb; }
+.jvb-sec-preset--empty .jvb-sec-preset__icon i { background: #e2e8f0; border: 1px dashed #cbd5e1; }
+.jvb-sec-preset__icon--rows { flex-direction: column; height: auto; gap: 3px; }
+.jvb-sec-preset__icon--rows i { width: 100%; height: 6px; flex: none; }
+.jvb-pal-item--section { border: 1px solid #2563eb; background: #eff6ff; color: #2563eb; font-weight: 600; }
+.jvb-pal-item--section:hover { background: #dbeafe; }
 
 /* Templates tab */
 .jvb-tpl-card {
