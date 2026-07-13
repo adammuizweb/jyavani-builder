@@ -1821,6 +1821,31 @@
       S.setRightHidden(!$('#jvbApp').classList.contains('right-hidden'));
     });
     try { if (localStorage.getItem('jvb_right_hidden') === '1') S.setRightHidden(true); } catch (e) {}
+
+    // Mobile: auto-hide both panels, close on backdrop tap
+    var app = $('#jvbApp');
+    function isMobile() { return window.innerWidth <= 768; }
+    app.classList.add('mobile-init');
+    if (isMobile()) {
+      setLeftHidden(true);
+      S.setRightHidden(true);
+    }
+    // Close panel when tapping backdrop (the ::before pseudo catches via document)
+    document.addEventListener('click', function (e) {
+      if (!isMobile()) return;
+      var t = e.target;
+      // If click is on canvas area (not on panels or edge tabs or toolbar), close panels
+      if (!t.closest('.jvb-left') && !t.closest('.jvb-panel') && !t.closest('.jvb-edge-tab') && !t.closest('.jvb-bar')) {
+        if (!app.classList.contains('left-hidden')) setLeftHidden(true);
+        if (!app.classList.contains('right-hidden')) S.setRightHidden(true);
+      }
+    });
+    // On resize: reset panels for desktop
+    window.addEventListener('resize', function () {
+      if (!isMobile()) {
+        setLeftHidden(false);
+      }
+    });
   }
 
   function publish() {

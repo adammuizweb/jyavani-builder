@@ -461,3 +461,47 @@
   .jvb-devices { flex: 1; }
   .jvb-devices button { flex: 1; }
 }
+
+/* ---------- Mobile panels: slide-over drawers ---------- */
+@media (max-width: 768px) {
+  .jvb-work { position: relative; }
+
+  /* Both panels become fixed overlays */
+  .jvb-left, .jvb-panel {
+    position: fixed; top: 0; bottom: 0; z-index: 200;
+    width: 85vw; max-width: 320px;
+    box-shadow: 0 0 40px rgba(0,0,0,.3);
+    transition: transform .25s ease;
+  }
+
+  /* Left panel: slides from left */
+  .jvb-left {
+    left: 0; border-right: 1px solid #dbe1e8;
+    transform: translateX(-100%);
+  }
+  .jvb-app:not(.left-hidden) .jvb-left { transform: translateX(0); }
+
+  /* Right panel: slides from right */
+  .jvb-panel {
+    right: 0; border-left: 1px solid #dbe1e8;
+    transform: translateX(100%);
+  }
+  .jvb-app:not(.right-hidden) .jvb-panel { transform: translateX(0); }
+
+  /* Default: both hidden on mobile */
+  .jvb-app:not(.mobile-init) .jvb-left,
+  .jvb-app:not(.mobile-init) .jvb-panel { display: none; }
+
+  /* Edge tabs: always at screen edges */
+  .jvb-edge-tab { z-index: 201; top: 50%; transform: translateY(-50%); }
+  .jvb-edge-tab--left { left: 0 !important; border-radius: 0 50% 50% 0; border-left: 0; }
+  .jvb-edge-tab--right { right: 0 !important; border-radius: 50% 0 0 50%; border-right: 0; }
+
+  /* Backdrop when a panel is open */
+  .jvb-app:not(.left-hidden)::before,
+  .jvb-app:not(.right-hidden)::before {
+    content: ''; position: fixed; inset: 0; z-index: 199;
+    background: rgba(0,0,0,.3);
+  }
+  .jvb-app:not(.left-hidden):not(.right-hidden)::before { display: none; }
+}
