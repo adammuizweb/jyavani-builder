@@ -114,7 +114,7 @@ body.jvb-frame { min-height: 100vh; }
 /* ---------- Empty states ---------- */
 .jvb-col__empty, .jvb-section__empty {
   padding: 24px; text-align: center; color: #94a3b8; font: 500 12px system-ui, sans-serif;
-  border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;
+  border: 1px dashed #cbd5e1; border-radius: 8px; background: transparent;
 }
 .jvb-canvas-empty {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
