@@ -31,14 +31,18 @@
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
 
-  function toast(msg, isErr) {
+  function toast(msg, type) {
+    // type: 'success'|'warning'|'info'|'error' (default 'info')
+    // backward compat: toast(msg, true) → error
+    if (type === true) type = 'error';
+    if (!type) type = 'info';
     if (window.NewNotifToast) {
-      window.NewNotifToast.show({ message: msg, type: isErr ? 'error' : 'info', duration: 2600 });
+      window.NewNotifToast.show({ message: msg, type: type, duration: 2600 });
       return;
     }
     var old = $('.jvb-toast'); if (old) old.remove();
     var t = document.createElement('div');
-    t.className = 'jvb-toast' + (isErr ? ' err' : '');
+    t.className = 'jvb-toast' + (type === 'error' ? ' err' : '');
     t.textContent = msg;
     document.body.appendChild(t);
     setTimeout(function () { t.remove(); }, 2600);
@@ -265,7 +269,7 @@
     refreshFrame();
     S.selected = { kind: 'section', id: sec.id };
     renderPanel();
-    toast('Section added — drag elements from the left panel');
+    toast('Section added — drag elements from the left panel', 'success');
   }
 
   function insertSectionMultiRow(rowCount, afterId) {
@@ -281,15 +285,15 @@
     refreshFrame();
     S.selected = { kind: 'section', id: sec.id };
     renderPanel();
-    toast('Section with ' + rowCount + ' rows added');
+    toast('Section with ' + rowCount + ' rows added', 'success');
   }
 
   function deleteNode(id) {
     var f = findNode(id);
     if (!f) return;
     pushUndo();
-    if (f.kind === 'col' && f.arr.length <= 1) { toast('A row needs at least one column', true); return; }
-    if (f.kind === 'row' && f.section && (f.section.rows || []).length <= 1) { toast('A section needs at least one row', true); return; }
+    if (f.kind === 'col' && f.arr.length <= 1) { toast('A row needs at least one column', 'error'); return; }
+    if (f.kind === 'row' && f.section && (f.section.rows || []).length <= 1) { toast('A section needs at least one row', 'error'); return; }
     f.arr.splice(f.index, 1);
     if (S.selected && S.selected.id === id) S.selected = null;
     markDirty(true);
@@ -301,16 +305,16 @@
   function deleteWithUndo(id, label) {
     var f = findNode(id);
     if (!f) return;
-    if (f.kind === 'col' && f.arr.length <= 1) { toast('A row needs at least one column', true); return; }
-    if (f.kind === 'row' && f.section && (f.section.rows || []).length <= 1) { toast('A section needs at least one row', true); return; }
+    if (f.kind === 'col' && f.arr.length <= 1) { toast('A row needs at least one column', 'error'); return; }
+    if (f.kind === 'row' && f.section && (f.section.rows || []).length <= 1) { toast('A section needs at least one row', 'error'); return; }
     deleteNode(id);
     if (window.NewNotifToast) {
-      var toastEl = window.NewNotifToast.show({ message: label || 'Deleted', type: 'info', duration: 4000 });
+      var toastEl = window.NewNotifToast.show({ message: label || 'Deleted', type: 'warning', duration: 4000 });
       if (toastEl) {
         var undoBtn = document.createElement('button');
         undoBtn.type = 'button';
         undoBtn.textContent = 'Undo';
-        undoBtn.style.cssText = 'margin-left:8px;padding:2px 10px;border:1px solid #94a3b8;background:transparent;color:#e2e8f0;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600';
+        undoBtn.style.cssText = 'margin-left:8px;padding:3px 12px;border:0;background:#0ea5e9;color:#fff;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.02em';
         undoBtn.addEventListener('click', function () {
           undo();
           toastEl.remove();
@@ -319,7 +323,7 @@
         if (content) content.appendChild(undoBtn);
       }
     } else {
-      toast(label || 'Deleted');
+      toast(label || 'Deleted', 'warning');
     }
   }
 
@@ -1332,7 +1336,7 @@
       S.layout.settings = S.layout.settings || {};
       S.layout.settings.custom_css = $('#jvbPageCss').value;
       markDirty(true); refreshFrame(); o.remove();
-      toast('Page CSS saved');
+      toast('Page CSS saved', 'success');
     });
   }
 
@@ -1352,7 +1356,7 @@
       if (!name) { toast('Name required', true); return; }
       api('template_save', { title: name, type: 'section', layout: secNode }).then(function (res) {
         o.remove();
-        if (res.success) { toast('Template saved'); loadTemplates(); }
+        if (res.success) { toast('Template saved', 'success'); loadTemplates(); }
         else toast(res.message || 'Failed', true);
       });
     });
@@ -1394,7 +1398,7 @@
           S.layout.sections.push(sec);
         }
         markDirty(true); refreshFrame();
-        toast('Template inserted');
+        toast('Template inserted', 'success');
       }
       if (tpl.type === 'page' && S.layout.sections.length) {
         confirmAsync({ title: 'Replace page?', message: 'Replace the whole page with this template?', confirmText: 'Replace' }).then(function (ok) {
@@ -1445,7 +1449,7 @@
                 markDirty(true);
                 refreshFrame(); renderPanel();
                 drawer.hidden = true;
-                toast('Revision restored to draft');
+                toast('Revision restored to draft', 'success');
               } else toast(r.message || 'Failed', true);
             });
           });
@@ -1595,7 +1599,7 @@
     }
     if (!col && ds.emptyCanvas) {
       // Guard: require section first — highlight Section button
-      toast('Create a section first');
+      toast('Create a section first', 'warning');
       var secBtn = $('.jvb-pal-item--section');
       if (secBtn) {
         secBtn.classList.add('is-highlight');
@@ -1767,7 +1771,7 @@
         updateStatusBadge();
         $('#jvbSaveState').textContent = 'Published ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         $('#jvbSaveState').className = 'jvb-savestate is-saved';
-        toast('Published! The live page is updated.');
+        toast('Published! The live page is updated.', 'success');
       } else {
         toast(res.message || 'Publish failed', true);
       }
@@ -1826,7 +1830,7 @@
         // open sections tab
         $$('.jvb-left__tabs button').forEach(function (x) { x.classList.toggle('is-active', x.dataset.tab === 'sections'); });
         $$('[data-tabpanel]').forEach(function (p) { p.hidden = p.dataset.tabpanel !== 'sections'; });
-        toast('Pick a section layout');
+        toast('Pick a section layout', 'info');
         break;
     }
   }
@@ -2047,7 +2051,7 @@
       if (load.imported) {
         S.dirty = true;
         updateStatusBadge();
-        toast('Content imported from editor. Review and save when ready.');
+        toast('Content imported from editor. Review and save when ready.', 'info');
       }
       if (els.success) {
         (els.elements || []).forEach(function (def) { if (def.type) S.registry[def.type] = def; });
