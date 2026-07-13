@@ -270,6 +270,49 @@
     renderPanel();
   }
 
+  // Close left panel on mobile after insert
+  function closeMobileLeftPanel() {
+    if (window.innerWidth > 768) return;
+    var app = $('#jvbApp');
+    if (!app.classList.contains('left-hidden')) {
+      app.classList.add('left-hidden');
+      var el = $('#jvbEdgeLeft');
+      if (el) el.textContent = '❯';
+    }
+  }
+
+  // Mobile tap-to-insert: find best column and append element
+  function tapInsertElement(type) {
+    var col = null;
+    // 1. If a column is selected, use it
+    if (S.selected && S.selected.kind === 'col') {
+      var f = findNode(S.selected.id);
+      if (f && f.node) col = f.node;
+    }
+    // 2. If an element is selected, use its parent column
+    if (!col && S.selected && S.selected.kind === 'element') {
+      var f2 = findNode(S.selected.id);
+      if (f2 && f2.col) col = f2.col;
+    }
+    // 3. Fallback: last column of last row of last section
+    if (!col) {
+      var secs = S.layout.sections;
+      if (secs.length) {
+        var lastSec = secs[secs.length - 1];
+        var rows = lastSec.rows || [];
+        if (rows.length) {
+          var lastRow = rows[rows.length - 1];
+          var cols = lastRow.cols || [];
+          if (cols.length) col = cols[cols.length - 1];
+        }
+      }
+    }
+    if (!col) { toast('Add a section first', 'warning'); return; }
+    addElement(type, col);
+    toast('Added ' + type, 'success');
+    closeMobileLeftPanel();
+  }
+
   function insertSection(widths, afterId) {
     pushUndo();
     var sec = makeSection(widths);
@@ -1571,8 +1614,13 @@
         item.className = 'jvb-pal-item';
         item.dataset.type = type;
         item.innerHTML = (S.iconSvgs[def.icon] || '') + '<span>' + esc(def.label || type) + '</span>';
-        item.title = 'Drag into the canvas';
+        item.title = window.innerWidth <= 768 ? 'Tap to insert' : 'Drag into the canvas';
         item.addEventListener('pointerdown', function (e) { startPaletteDrag(type, e); });
+        item.addEventListener('click', function (e) {
+          if (window.innerWidth > 768) return; // desktop: drag only
+          e.preventDefault(); e.stopPropagation();
+          tapInsertElement(type);
+        });
         grid.appendChild(item);
       });
       wrap.appendChild(grid);
@@ -1688,6 +1736,7 @@
     emptyBtn.addEventListener('click', function () {
       var after = S.pendingInsertAfter; S.pendingInsertAfter = null;
       insertSection([100], after);
+      closeMobileLeftPanel();
     });
     quickGrid.appendChild(emptyBtn);
 
@@ -1716,6 +1765,7 @@
       b.addEventListener('click', function () {
         var after = S.pendingInsertAfter; S.pendingInsertAfter = null;
         insertSection(p.widths, after);
+        closeMobileLeftPanel();
       });
       colGrid.appendChild(b);
     });
@@ -1738,6 +1788,7 @@
       b.addEventListener('click', function () {
         var after = S.pendingInsertAfter; S.pendingInsertAfter = null;
         insertSectionMultiRow(p.rows, after);
+        closeMobileLeftPanel();
       });
       rowGrid.appendChild(b);
     });
