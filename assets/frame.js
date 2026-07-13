@@ -65,6 +65,18 @@
           '<button data-act="del" title="Delete row" class="danger">' + (ICONS['x'] || '×') + '</button>';
         node.insertBefore(tools, node.firstChild);
       }
+
+      if (kind === 'col') {
+        var tools = document.createElement('div');
+        tools.className = 'jvb-col-tools';
+        tools.innerHTML =
+          '<button data-act="settings" title="Column settings">' + (ICONS['settings'] || 'S') + '</button>' +
+          '<button data-act="left" title="Move left">' + (ICONS['chevron-left'] || '<') + '</button>' +
+          '<button data-act="right" title="Move right">' + (ICONS['chevron-right'] || '>') + '</button>' +
+          '<button data-act="dup" title="Duplicate column">' + (ICONS['copy'] || 'D') + '</button>' +
+          '<button data-act="del" title="Delete column" class="danger">' + (ICONS['x'] || '×') + '</button>';
+        node.insertBefore(tools, node.firstChild);
+      }
     });
 
     // ---------- Row spots (+ between rows) ----------
@@ -283,6 +295,14 @@
       e.preventDefault(); e.stopPropagation();
       var row = rowToolBtn.closest('[data-jvb]');
       post({ t: 'row-action', act: rowToolBtn.dataset.act, id: row.getAttribute('data-jvb') });
+      return;
+    }
+    // column tools
+    var colToolBtn = e.target.closest('.jvb-col-tools button');
+    if (colToolBtn) {
+      e.preventDefault(); e.stopPropagation();
+      var col = colToolBtn.closest('[data-jvb]');
+      post({ t: 'col-action', act: colToolBtn.dataset.act, id: col.getAttribute('data-jvb') });
       return;
     }
     // column insert spot (add column at index)

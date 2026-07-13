@@ -1695,8 +1695,8 @@
       case 'row-action':
         handleRowAction(msg);
         break;
-      case 'row-action':
-        handleRowAction(msg);
+      case 'col-action':
+        handleColAction(msg);
         break;
       case 'insert-section':
         S.pendingInsertAfter = msg.afterId;
@@ -1793,6 +1793,22 @@
       case 'down': moveNode(msg.id, 'row', 1); break;
       case 'dup': duplicateNode(msg.id); break;
       case 'del': if (confirm('Delete this row and all its columns?')) deleteNode(msg.id); break;
+    }
+  }
+
+  function handleColAction(msg) {
+    switch (msg.act) {
+      case 'settings':
+        S.selected = { kind: 'col', id: msg.id };
+        S.panelTab = 'content';
+        renderPanel();
+        break;
+      case 'left': moveNode(msg.id, 'col', -1); break;
+      case 'right': moveNode(msg.id, 'col', 1); break;
+      case 'dup': duplicateNode(msg.id); break;
+      case 'del':
+        if (confirm('Delete this column and all its elements?')) deleteNode(msg.id);
+        break;
     }
   }
 
