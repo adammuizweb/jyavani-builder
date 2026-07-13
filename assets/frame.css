@@ -91,37 +91,37 @@ body.jvb-frame { min-height: 100vh; }
   display: flex; align-items: center; justify-content: center;
   height: 20px; overflow: hidden; cursor: pointer;
   pointer-events: auto; color: #64748b; font-size: 13px; font-weight: 700;
-  opacity: 0; transition: opacity .15s; line-height: 1;
+  opacity: .35; transition: opacity .15s; line-height: 1;
   position: relative; z-index: 10;
   border-radius: 4px;
   background: repeating-linear-gradient(
     -45deg,
-    rgba(148,163,184,.08),
-    rgba(148,163,184,.08) 4px,
-    rgba(148,163,184,.16) 4px,
-    rgba(148,163,184,.16) 8px
+    rgba(148,163,184,.12),
+    rgba(148,163,184,.12) 4px,
+    rgba(148,163,184,.25) 4px,
+    rgba(148,163,184,.25) 8px
   );
 }
 .jvb-row-spot--top { margin-bottom: 4px; }
 .jvb-section__inner:hover .jvb-row-spot, .jvb-row-spot:hover { opacity: 1; }
-.jvb-row-spot:hover { background: repeating-linear-gradient(-45deg, rgba(148,163,184,.15), rgba(148,163,184,.15) 4px, rgba(148,163,184,.3) 4px, rgba(148,163,184,.3) 8px); }
+.jvb-row-spot:hover { background: repeating-linear-gradient(-45deg, rgba(148,163,184,.2), rgba(148,163,184,.2) 4px, rgba(148,163,184,.4) 4px, rgba(148,163,184,.4) 8px); }
 .jvb-col-spot {
   display: flex; align-items: center; justify-content: center;
   width: 8px; cursor: pointer; pointer-events: auto;
   color: #64748b; font-size: 11px; font-weight: 700;
-  opacity: 0; transition: opacity .15s;
+  opacity: .35; transition: opacity .15s;
   white-space: nowrap; overflow: hidden;
   flex-shrink: 0; border-radius: 4px;
   background: repeating-linear-gradient(
     -45deg,
-    rgba(148,163,184,.08),
-    rgba(148,163,184,.08) 3px,
-    rgba(148,163,184,.16) 3px,
-    rgba(148,163,184,.16) 6px
+    rgba(148,163,184,.12),
+    rgba(148,163,184,.12) 3px,
+    rgba(148,163,184,.25) 3px,
+    rgba(148,163,184,.25) 6px
   );
 }
 .jvb-row[data-jvb]:hover .jvb-col-spot, .jvb-row.jvb-node-sel .jvb-col-spot { opacity: 1; }
-.jvb-col-spot:hover { background: repeating-linear-gradient(-45deg, rgba(148,163,184,.15), rgba(148,163,184,.15) 3px, rgba(148,163,184,.3) 3px, rgba(148,163,184,.3) 6px); }
+.jvb-col-spot:hover { background: repeating-linear-gradient(-45deg, rgba(148,163,184,.2), rgba(148,163,184,.2) 3px, rgba(148,163,184,.4) 3px, rgba(148,163,184,.4) 6px); }
 .jvb-col-spot--left { border-radius: 4px 0 0 4px; }
 .jvb-col-spot--right { border-radius: 0 4px 4px 0; }
 
@@ -149,14 +149,14 @@ body.jvb-frame { min-height: 100vh; }
 /* ---------- Insert section bar ---------- */
 .jvb-insert-sec {
   display: flex; align-items: center; justify-content: center;
-  height: 0; overflow: hidden; transition: height .15s; cursor: pointer;
+  height: 6px; overflow: hidden; transition: height .15s; cursor: pointer;
   pointer-events: auto;
   background: repeating-linear-gradient(
     -45deg,
-    rgba(148,163,184,.06),
-    rgba(148,163,184,.06) 4px,
-    rgba(148,163,184,.12) 4px,
-    rgba(148,163,184,.12) 8px
+    rgba(148,163,184,.1),
+    rgba(148,163,184,.1) 4px,
+    rgba(148,163,184,.2) 4px,
+    rgba(148,163,184,.2) 8px
   );
 }
 .jvb-section[data-jvb]:hover + .jvb-insert-sec, .jvb-insert-sec:hover { height: 26px; }
