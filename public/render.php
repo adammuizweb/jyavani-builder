@@ -773,7 +773,7 @@ function jvb_render_column(PDO $pdo, array $col, array $ctx): string {
         if (is_array($el)) $els .= jvb_render_element($pdo, $el, $ctx);
     }
     if ($els === '' && !empty($ctx['canvas'])) {
-        $els = '<div class="jvb-col__empty">+ Drop elements here</div>';
+        $els = '<div class="jvb-col__dropzone"><div class="jvb-col__empty">+ Drop elements here</div></div>';
     }
     return '<div' . jvb_node_attrs($s, 'jvb-col') . ' data-jvb="' . jvb_e($id) . '" data-jvb-kind="col">' . $els . '</div>';
 }
@@ -795,7 +795,7 @@ function jvb_render_row(PDO $pdo, array $row, array $ctx): string {
         if (is_array($col)) $cols .= jvb_render_column($pdo, $col, $ctx);
     }
     if ($cols === '' && !empty($ctx['canvas'])) {
-        $cols = '<div class="jvb-col__empty">+ Drop elements here</div>';
+        $cols = '<div class="jvb-col__dropzone"><div class="jvb-col__empty">+ Drop elements here</div></div>';
     }
     return '<div' . jvb_node_attrs($s, $rowCls) . ' data-jvb="' . jvb_e($id) . '" data-jvb-kind="row" style="--jvb-row-gap:' . $gap . 'px">' . $cols . '</div>';
 }
@@ -810,7 +810,7 @@ function jvb_render_section(PDO $pdo, array $sec, array $ctx): string {
         if (is_array($row)) $rowsHtml .= jvb_render_row($pdo, $row, $ctx);
     }
     if ($rowsHtml === '' && !empty($ctx['canvas'])) {
-        $rowsHtml = '<div class="jvb-section__empty">+ Add a row</div>';
+        $rowsHtml = '<div class="jvb-col__dropzone"><div class="jvb-section__empty">+ Add a row</div></div>';
     }
 
     $hasOverlay = jvb_color($s['overlay_color'] ?? '') !== '' && (float)($s['overlay_opacity'] ?? 0) > 0;
