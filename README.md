@@ -1,6 +1,6 @@
 # Jy Builder
 
-Visual drag-and-drop builder for [Jyavani CMS](https://github.com/jyavani/jyavani). Works with articles, pages, and themes.
+Visual drag-and-drop builder for [Jyavani CMS](https://github.com/adammuizweb/jyavani). Works with articles, pages, and themes.
 
 ![Version](https://img.shields.io/badge/version-3.0.0-blue)
 ![PHP](https://img.shields.io/badge/PHP-%3E%3D8.1-purple)
@@ -103,7 +103,7 @@ Section (full-width horizontal band)
 
 ## Requirements
 
-- Jyavani CMS ≥ 2.1.3
+- Jyavani CMS ≥ 2.3.0
 - PHP ≥ 8.1
 - PDO, JSON extensions
 
