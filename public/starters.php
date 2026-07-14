@@ -89,7 +89,7 @@ function jvb_starter_templates(): array {
             'layout' => $sec(
                 ['layout' => 'boxed', 'padding' => ['d' => ['t' => 80, 'b' => 80, 'unit' => 'px']]],
                 [[$w(100), [
-                    $el('testimonial', ['quote' => 'Jyavani Builder let us launch our campaign page in an afternoon. The design tokens keep everything on brand.', 'name' => 'Sarah Wijaya', 'role' => 'Marketing Lead, APU', 'rating' => 5, 'align' => ['d' => 'center']]),
+                    $el('testimonial', ['quote' => 'Jyavani Builder let us launch our campaign page in an afternoon. The design tokens keep everything on brand.', 'name' => 'Sarah Wijaya', 'role' => 'Marketing Lead, Acme Corp', 'rating' => 5, 'align' => ['d' => 'center']]),
                 ]]]
             ),
         ],
