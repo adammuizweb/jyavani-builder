@@ -2194,7 +2194,7 @@
   function init() {
     // Escape transformed/animated ancestors: position:fixed becomes relative to
     // them (containing block), which trapped the app beside the admin sidebar on
-    // themes with entrance animations (e.g. APU .adam-main translateY).
+    // themes with entrance animations (e.g. custom .adam-main translateY).
     var appEl = $('#jvbApp');
     if (appEl && appEl.parentElement !== document.body) document.body.appendChild(appEl);
 
