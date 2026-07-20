@@ -627,6 +627,36 @@ add_filter('layout_slot_html', function (string $html, string $slot = '', array 
     return $out;
 }, 5);
 
+// Conditional frontend CSS (grid, sections, elements, tokens). wp_head fires
+// BEFORE the main slot renders, so jvb_mark_rendered() is not set yet — we must
+// pre-detect whether this request will render a builder layout:
+//  1) homepage with a designated builder home post (or slug 'home')
+//  2) singular published post/page having a published builder layout
+//  3) draft preview mode (?jvb_preview=1)
+add_action('wp_head', function (): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    $pdo = $GLOBALS['pdo'] ?? null;
+    if (!($pdo instanceof PDO)) return;
+
+    $need = false;
+    $path = trim((string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/'), '/');
+    if ($path === '') {
+        $need = jvb_home_post_id($pdo) !== null;
+    } else {
+        $slug = basename($path);
+        try {
+            $st = $pdo->prepare("SELECT p.id FROM `posts` p JOIN `jvb_layouts` l ON l.post_id = p.id WHERE p.slug = ? AND p.is_deleted = 0 AND p.status = 'published' AND l.published_json IS NOT NULL AND l.published_json != '' LIMIT 1");
+            $st->execute([$slug]);
+            $need = (bool)$st->fetchColumn();
+        } catch (Throwable $e) {}
+    }
+    if (!$need && isset($_GET['jvb_preview'])) $need = true;
+    if (!$need) return;
+    echo '<link rel="stylesheet" href="' . jvb_asset_url('frontend.css') . '">' . "\n";
+});
+
 // Conditional frontend JS (animations, lightbox, countdown, tabs, accordion).
 add_action('wp_footer', function (): void {
     if (empty($GLOBALS['_jvb_any_rendered'])) return;
