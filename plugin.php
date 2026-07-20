@@ -633,7 +633,7 @@ add_filter('layout_slot_html', function (string $html, string $slot = '', array 
 //  1) homepage with a designated builder home post (or slug 'home')
 //  2) singular published post/page having a published builder layout
 //  3) draft preview mode (?jvb_preview=1)
-add_action('wp_head', function (): void {
+add_action('jy_head', function (): void {
     static $done = false;
     if ($done) return;
     $done = true;
@@ -658,7 +658,7 @@ add_action('wp_head', function (): void {
 });
 
 // Conditional frontend JS (animations, lightbox, countdown, tabs, accordion).
-add_action('wp_footer', function (): void {
+add_action('jy_footer', function (): void {
     if (empty($GLOBALS['_jvb_any_rendered'])) return;
     echo '<script src="' . jvb_asset_url('frontend.js') . '" defer></script>' . "\n";
 });
