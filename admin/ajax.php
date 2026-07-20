@@ -18,7 +18,7 @@ if ($action === 'frame') {
         exit('Not logged in');
     }
     $role = function_exists('current_user_role') ? current_user_role($pdo) : null;
-    if (!in_array($role, ['editor', 'admin'], true)) {
+    if (!in_array($role, ['author', 'editor', 'admin'], true)) {
         http_response_code(403);
         exit('Insufficient permissions');
     }
@@ -27,9 +27,17 @@ if ($action === 'frame') {
 
     $post = null;
     if ($postId > 0) {
-        $st = $pdo->prepare('SELECT id, title, slug, type FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
+        $st = $pdo->prepare('SELECT id, title, slug, type, created_by FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
         $st->execute([$postId]);
         $post = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+        // Ownership check (CMS core rule: author/editor only own posts)
+        if (is_array($post) && $role !== 'admin') {
+            $frameUid = function_exists('current_user_id') ? (int)current_user_id() : 0;
+            if ((int)($post['created_by'] ?? 0) !== $frameUid) {
+                http_response_code(403);
+                exit('Access denied: you can only edit your own posts');
+            }
+        }
     }
     $layout = $postId > 0 ? (jvb_get_layout($pdo, $postId, 'draft') ?? jvb_empty_layout()) : jvb_empty_layout();
     $layout = jvb_normalize_layout($layout);

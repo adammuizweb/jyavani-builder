@@ -24,7 +24,12 @@ $homeForced = null; // same-request override: settings_get() is statically cache
 $act = (string)($_POST['jvb_action'] ?? '');
 if ($act !== '') {
     $okCsrf = function_exists('csrf_check') ? csrf_check((string)($_POST['csrf_token'] ?? '')) : true;
-    if ($okCsrf && function_exists('settings_set')) {
+    if (!$okCsrf) {
+        $homeMsg = 'CSRF check failed.';
+    } elseif ($role !== 'admin') {
+        // Homepage designation is a site-wide setting — admin only
+        $homeMsg = 'Only admins can change the homepage designation.';
+    } elseif (function_exists('settings_set')) {
         if ($act === 'set_home') {
             $pid = (int)($_POST['post_id'] ?? 0);
             $st = $pdo->prepare("SELECT id FROM `posts` WHERE id = ? AND type IN ('page','article') AND is_deleted = 0 LIMIT 1");
@@ -39,8 +44,6 @@ if ($act !== '') {
             $homeForced = 0;
             $homeMsg = 'Homepage designation cleared.';
         }
-    } else {
-        $homeMsg = 'CSRF check failed.';
     }
 }
 
@@ -169,6 +172,7 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
           <td style="white-space:nowrap">
             <a class="jvba-btn sm primary" href="<?= jvb_url(['view' => 'builder', 'post_id' => $pid]) ?>"><?= svg_ico('zap', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> Builder</a>
             <a class="jvba-btn sm" href="/<?= htmlspecialchars($p['slug'], ENT_QUOTES) ?>/" target="_blank" rel="noopener">View</a>
+            <?php if ($role === 'admin'): ?>
             <form method="post" style="display:inline">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
               <input type="hidden" name="post_id" value="<?= $pid ?>">
@@ -180,6 +184,7 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
                 <button class="jvba-btn sm" type="submit" title="Use this post's builder layout as the homepage"><?= svg_ico('house', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> Set home</button>
               <?php endif; ?>
             </form>
+            <?php endif; ?>
           </td>
         </tr>
       <?php endforeach; ?>
