@@ -26,6 +26,34 @@ if ($act !== '') {
     $okCsrf = function_exists('csrf_check') ? csrf_check((string)($_POST['csrf_token'] ?? '')) : true;
     if (!$okCsrf) {
         $homeMsg = 'CSRF check failed.';
+    } elseif ($act === 'duplicate') {
+        // Duplicate post + its builder layout (own posts only for non-admins)
+        $pid = (int)($_POST['post_id'] ?? 0);
+        $st = $pdo->prepare("SELECT id, title, slug, type, content, created_by FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1");
+        $st->execute([$pid]);
+        $src = $st->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($src)) {
+            $homeMsg = 'Source post not found.';
+        } elseif ($role !== 'admin' && (int)($src['created_by'] ?? 0) !== $uid) {
+            $homeMsg = 'Access denied: you can only duplicate your own posts.';
+        } else {
+            $newTitle = $src['title'] . ' (Copy)';
+            $baseSlug = strtolower(trim(preg_replace('/[^a-z0-9]+/i', '-', $src['slug'] . '-copy'), '-')) ?: 'copy';
+            $slug = $baseSlug; $si = 1;
+            while (true) {
+                $chk = $pdo->prepare('SELECT id FROM posts WHERE slug = ? AND is_deleted = 0 LIMIT 1');
+                $chk->execute([$slug]);
+                if (!$chk->fetchColumn()) break;
+                $slug = $baseSlug . '-' . (++$si);
+            }
+            $pdo->prepare('INSERT INTO posts (title, slug, type, status, content, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())')
+                ->execute([$newTitle, $slug, $src['type'], 'draft', $src['content'], $uid]);
+            $newId = (int)$pdo->lastInsertId();
+            $pdo->prepare('INSERT INTO jvb_layouts (post_id, status, draft_json, published_json, published_at)
+                           SELECT ?, status, draft_json, published_json, published_at FROM jvb_layouts WHERE post_id = ?')
+                ->execute([$newId, $pid]);
+            $homeMsg = 'Duplicated as "' . $newTitle . '" (draft).';
+        }
     } elseif ($role !== 'admin') {
         // Homepage designation is a site-wide setting — admin only
         $homeMsg = 'Only admins can change the homepage designation.';
@@ -172,6 +200,12 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
           <td style="white-space:nowrap">
             <a class="jvba-btn sm primary" href="<?= jvb_url(['view' => 'builder', 'post_id' => $pid]) ?>"><?= svg_ico('zap', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> Builder</a>
             <a class="jvba-btn sm" href="/<?= htmlspecialchars($p['slug'], ENT_QUOTES) ?>/" target="_blank" rel="noopener">View</a>
+            <form method="post" style="display:inline">
+              <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
+              <input type="hidden" name="post_id" value="<?= $pid ?>">
+              <input type="hidden" name="jvb_action" value="duplicate">
+              <button class="jvba-btn sm" type="submit" title="Duplicate this post and its builder layout (as draft)"><?= svg_ico('copy', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?></button>
+            </form>
             <?php if ($role === 'admin'): ?>
             <form method="post" style="display:inline">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">

@@ -1569,6 +1569,53 @@
     });
   }
 
+  // ───────────────────────── Export / Import layout JSON ─────────────────────────
+  function doExport() {
+    var post = (boot && boot.post) || {};
+    var data = {
+      format: 'jvb-layout/3',
+      post: { title: post.title || '', type: post.type || 'page', slug: post.slug || '' },
+      layout: S.layout,
+    };
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (post.slug || 'layout') + '.jvb.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    toast('Layout exported as ' + a.download, 'success');
+  }
+
+  function openImport() {
+    $('#jvbImportModal').hidden = false;
+    var t = $('#jvbImportText');
+    t.value = '';
+    t.focus();
+  }
+  function closeImport() { $('#jvbImportModal').hidden = true; }
+
+  function applyImport() {
+    var raw = $('#jvbImportText').value.trim();
+    if (!raw) { toast('Paste JSON first', true); return; }
+    var parsed;
+    try { parsed = JSON.parse(raw); } catch (e) { toast('Invalid JSON: ' + e.message, true); return; }
+    var layout = (parsed && parsed.layout) ? parsed.layout : parsed;
+    if (!layout || !Array.isArray(layout.sections)) { toast('Not a Jy Builder layout (missing sections array)', true); return; }
+    for (var i = 0; i < layout.sections.length; i++) {
+      if (!Array.isArray(layout.sections[i].rows)) { toast('Invalid section #' + (i + 1) + ' (missing rows)', true); return; }
+    }
+    pushUndo();
+    S.layout = migrateV2toV3(layout);
+    S.selected = null;
+    markDirty(true);
+    closeImport();
+    refreshFrame();
+    renderPanel();
+    toast('Layout imported to draft — review, then Publish when ready', 'success');
+  }
+
   // ───────────────────────── Palette + sections tab ─────────────────────────
   function buildPalette() {
     var host = $('#jvbPalette');
@@ -1824,6 +1871,14 @@
     $('#jvbPostModalSave').addEventListener('click', savePostSettings);
     $('#jvbPostModal').addEventListener('click', function (e) {
       if (e.target === this) closePostSettings();
+    });
+    $('#jvbExport').addEventListener('click', doExport);
+    $('#jvbImport').addEventListener('click', openImport);
+    $('#jvbImportModalClose').addEventListener('click', closeImport);
+    $('#jvbImportModalCancel').addEventListener('click', closeImport);
+    $('#jvbImportModalApply').addEventListener('click', applyImport);
+    $('#jvbImportModal').addEventListener('click', function (e) {
+      if (e.target === this) closeImport();
     });
     $('#jvbPanelClose').addEventListener('click', function () {
       // minimize the panel itself; reopen via ◨ toolbar button or by selecting a node

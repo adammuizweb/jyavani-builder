@@ -55,6 +55,8 @@ $v = max(
       <button class="jvb-bar__btn" id="jvbPostSettings" title="Post settings"><?= svg_ico('file-text', 'jvb-ic') ?></button>
       <button class="jvb-bar__btn" id="jvbPageSettings" title="Page settings (custom CSS)"><?= svg_ico('settings', 'jvb-ic') ?></button>
       <a class="jvb-bar__btn" id="jvbPreview" href="<?= htmlspecialchars($permalink, ENT_QUOTES) ?>?jvb_preview=1" target="_blank" rel="noopener" title="Preview draft"><?= svg_ico('eye', 'jvb-ic') ?></a>
+      <button class="jvb-bar__btn" id="jvbExport" title="Export layout as JSON"><?= svg_ico('download', 'jvb-ic') ?></button>
+      <button class="jvb-bar__btn" id="jvbImport" title="Import layout from JSON"><?= svg_ico('upload', 'jvb-ic') ?></button>
       <button class="jvb-bar__btn jvb-bar__btn--publish" id="jvbPublish">Publish</button>
     </div>
   </header>
@@ -169,6 +171,26 @@ $v = max(
       <div class="jvb-post-modal__foot">
         <button class="jvb-post-modal__btn jvb-post-modal__btn--cancel" id="jvbPostModalCancel">Cancel</button>
         <button class="jvb-post-modal__btn jvb-post-modal__btn--save" id="jvbPostModalSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Import modal ── -->
+  <div class="jvb-post-overlay" id="jvbImportModal" hidden>
+    <div class="jvb-post-modal">
+      <div class="jvb-post-modal__head">
+        <strong>Import layout</strong>
+        <button class="jvb-post-modal__close" id="jvbImportModalClose"><?= svg_ico('x', 'jvb-ic', ['style' => 'width:14px;height:14px']) ?></button>
+      </div>
+      <div class="jvb-post-modal__body">
+        <label class="jvb-post-modal__field">
+          <span>Paste a <code>.jvb.json</code> export (or a bare layout object). Current draft will be replaced — undo still works.</span>
+          <textarea id="jvbImportText" rows="12" style="width:100%;font-family:ui-monospace,monospace;font-size:12px" placeholder='{"format":"jvb-layout/3","layout":{"v":3,"sections":[…]}}'></textarea>
+        </label>
+      </div>
+      <div class="jvb-post-modal__foot">
+        <button class="jvb-post-modal__btn jvb-post-modal__btn--cancel" id="jvbImportModalCancel">Cancel</button>
+        <button class="jvb-post-modal__btn jvb-post-modal__btn--save" id="jvbImportModalApply">Import</button>
       </div>
     </div>
   </div>
