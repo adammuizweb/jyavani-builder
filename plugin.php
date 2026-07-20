@@ -515,7 +515,8 @@ function jvb_icon_svg(string $name): string {
     if (isset($cache[$name])) return $cache[$name];
     $dir = defined('PUBLIC_PATH')
         ? PUBLIC_PATH . '/static/icons/lucide'
-        : (realpath(__DIR__ . '/../../public/static/icons/lucide') ?: '');
+        : (realpath(__DIR__ . '/../../public_html/static/icons/lucide')
+            ?: (realpath(__DIR__ . '/../../public/static/icons/lucide') ?: ''));
     if (!$dir) { $cache[$name] = ''; return ''; }
     $path = $dir . '/' . $name . '.svg';
     if (!is_file($path)) { $cache[$name] = ''; return ''; }

@@ -156,7 +156,7 @@ $v = max(
           <span>Author</span>
           <select id="jvbPostAuthor">
             <?php
-            $users = $pdo->query("SELECT id, name, role FROM users WHERE is_deleted = 0 AND role IN ('admin','editor') ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+            $users = $pdo->query("SELECT id, name, role FROM users WHERE is_deleted = 0 AND role IN ('admin','editor','author') ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
             $curAuthor = (int)($post['created_by'] ?? $uid);
             foreach ($users as $u):
             ?>

@@ -1,6 +1,6 @@
 {
   "name": "jyavani-builder",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "title": "Jy Builder",
   "icon": "icon.svg",
   "description": "Visual drag-and-drop builder for Jyavani CMS — works with articles, pages, and themes. WYSIWYG iframe canvas with inline editing, sections/rows/columns/elements tree, design tokens, responsive per-device controls, draft/publish workflow, revisions, template library, entrance animations, shape dividers, dynamic posts grid, and native Form Builder integration.",

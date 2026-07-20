@@ -436,9 +436,17 @@ function jvb_node_attrs(array $s, string $extraClass = ''): string {
 // ---------------- Lucide icons (plugin set first, then core set) ----------------
 
 function jvb_lucide_dirs(): array {
+    // Core icon set — resolve via PUBLIC_PATH when available (hybrid installs
+    // may use public_html/ instead of public/ as the webroot).
+    if (defined('PUBLIC_PATH')) {
+        $core = PUBLIC_PATH . '/static/icons/lucide/';
+    } else {
+        $core = realpath(dirname(__DIR__, 3) . '/public_html/static/icons/lucide')
+              ?: (dirname(__DIR__, 3) . '/public/static/icons/lucide/');
+    }
     return [
         __DIR__ . '/../assets/icons/',
-        dirname(__DIR__, 3) . '/public/static/icons/lucide/',
+        $core,
     ];
 }
 
