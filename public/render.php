@@ -914,11 +914,19 @@ function jvb_render_layout(PDO $pdo, array $layout, array $post = [], array $opt
 
     // Base component stylesheet, linked once per request (link-in-body is
     // supported by all browsers; wp_head fires before our content filter on pages).
+    // With 'inline_css' the stylesheet is embedded instead — used for the DB
+    // fallback copy so published pages stay fully styled even if the plugin
+    // (and its static assets) is later uninstalled.
     static $baseLinked = false;
     $baseLink = '';
     if (!$baseLinked && empty($opts['canvas'])) {
         $baseLinked = true;
-        $baseLink = '<link rel="stylesheet" href="' . jvb_asset_url('frontend.css') . '">' . "\n";
+        if (!empty($opts['inline_css'])) {
+            $cssFile = dirname(__DIR__) . '/assets/frontend.css';
+            $baseLink = is_file($cssFile) ? '<style>' . file_get_contents($cssFile) . '</style>' . "\n" : '';
+        } else {
+            $baseLink = '<link rel="stylesheet" href="' . jvb_asset_url('frontend.css') . '">' . "\n";
+        }
     }
 
     // jvb-anim-on activates animation initial states only when JS is available.

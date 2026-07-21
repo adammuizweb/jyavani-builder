@@ -205,7 +205,10 @@ switch ($action) {
         // Sync rendered HTML to posts.content for fallback (plugin uninstalled)
         $pubLayout = jvb_get_layout($pdo, (int)$post['id'], 'published');
         if ($pubLayout !== null) {
-            $rendered = jvb_render_layout($pdo, $pubLayout, $post);
+            // Self-contained fallback: embed frontend.css inline so the page
+            // stays fully styled even if the plugin is later uninstalled
+            // (static assets under static/vendor get removed by the CMS).
+            $rendered = jvb_render_layout($pdo, $pubLayout, $post, ['inline_css' => true]);
             $pdo->prepare('UPDATE `posts` SET content = ? WHERE id = ?')->execute([$rendered, (int)$post['id']]);
         }
         jvb_json(['success' => true, 'post_id' => (int)$post['id'], 'published_at' => date('Y-m-d H:i:s')]);
