@@ -131,14 +131,27 @@
     });
   }
 
+  /* ---- Carousel (Swiper — shipped globally by CMS core) ---- */
+  function initCarousels() {
+    if (typeof Swiper === 'undefined') return;
+    document.querySelectorAll('.jvb-carousel[data-jvb-carousel]').forEach(function (el) {
+      if (el.__jvbSwiper) return;
+      try {
+        var cfg = JSON.parse(el.getAttribute('data-jvb-carousel') || '{}');
+        el.__jvbSwiper = new Swiper(el, cfg);
+      } catch (e) {}
+    });
+  }
+
   onReady(function () {
     initObservers();
     initCountdowns();
     initTabs();
     initVideoFacades();
     initLightbox();
+    initCarousels();
   });
 
   // Expose for the builder frame (re-init after canvas refresh)
-  window.JVBFrontend = { init: function () { initObservers(); initCountdowns(); initTabs(); initVideoFacades(); initLightbox(); } };
+  window.JVBFrontend = { init: function () { initObservers(); initCountdowns(); initTabs(); initVideoFacades(); initLightbox(); initCarousels(); } };
 })();

@@ -172,7 +172,7 @@ The root layout object:
 
 ---
 
-## Element Types (20 available)
+## Element Types (22 available)
 
 Each element has: `id`, `type`, `settings` (type-specific).
 
@@ -380,6 +380,57 @@ Each element has: `id`, `type`, `settings` (type-specific).
   }
 }
 ```
+
+#### carousel
+```json
+{
+  "id": "e_021", "type": "carousel",
+  "settings": {
+    "images": [
+      { "url": "https://example.com/1.jpg", "alt": "Slide 1" },
+      { "url": "https://example.com/2.jpg", "alt": "Slide 2" }
+    ],
+    "per_view": { "d": 1, "t": 1, "m": 1 },
+    "gap": 16,
+    "ratio": "16/9",
+    "effect": "slide",
+    "autoplay": false,
+    "delay": 4000,
+    "loop": true,
+    "nav": true,
+    "dots": true,
+    "radius": ""
+  }
+}
+```
+- Swiper-based (Swiper ships with CMS core — keeps working even if the plugin is uninstalled)
+- `per_view`: slides visible per device (1–4)
+- `ratio`: `"16/9"`, `"4/3"`, `"1/1"`, `"3/4"`, `"21/9"`
+- `effect`: `"slide"` or `"fade"`
+- `autoplay`: true = auto-advance every `delay` ms (pauses on hover)
+
+#### card
+```json
+{
+  "id": "e_022", "type": "card",
+  "settings": {
+    "image": "https://example.com/photo.jpg",
+    "img_alt": "Photo",
+    "badge": "New",
+    "title": "Card title",
+    "text": "Supporting text for this card.",
+    "btn_text": "Learn more",
+    "btn_url": "#",
+    "layout": "top",
+    "radius": 12,
+    "shadow": true,
+    "color": "primary"
+  }
+}
+```
+- `layout`: `"top"` (image above) or `"left"` (image beside, 40% width)
+- `badge`: optional floating label on the image (omit/empty = none)
+- `btn_text`/`btn_url`: optional button (omit btn_text = no button)
 
 #### testimonial
 ```json

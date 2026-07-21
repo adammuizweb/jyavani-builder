@@ -260,3 +260,24 @@
   .jvb-posts { grid-template-columns: 1fr !important; }
   .jvb-gallery { grid-template-columns: repeat(2, 1fr) !important; }
 }
+
+/* ── Card ── */
+.jvb-card { background: var(--jvb-surface); border: 1px solid var(--jvb-border); border-radius: var(--jvb-card-radius, 12px); overflow: hidden; display: flex; flex-direction: column; }
+.jvb-card--shadow { box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
+.jvb-card--left { flex-direction: row; }
+.jvb-card--left .jvb-card__media { flex: 0 0 40%; }
+.jvb-card__media { position: relative; }
+.jvb-card__media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.jvb-card__badge { position: absolute; top: 12px; left: 12px; background: var(--jvb-card, var(--jvb-primary)); color: #fff; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; line-height: 1.4; }
+.jvb-card__body { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+.jvb-card__title { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--jvb-text); }
+.jvb-card__text { margin: 0; color: var(--jvb-muted); line-height: 1.6; }
+.jvb-card__body .jvb-btn { align-self: flex-start; margin-top: 6px; }
+@media (max-width: 767px) { .jvb-card--left { flex-direction: column; } }
+
+/* ── Carousel (Swiper — assets ship with CMS core) ── */
+.jvb-carousel { position: relative; }
+.jvb-carousel__slide img { width: 100%; aspect-ratio: var(--jvb-cr-ratio, 16 / 9); object-fit: cover; display: block; border-radius: var(--jvb-cr-radius, 0); }
+.jvb-carousel .swiper-button-prev, .jvb-carousel .swiper-button-next { color: var(--jvb-primary); }
+.jvb-carousel .swiper-pagination-bullet-active { background: var(--jvb-primary); }
+.jvb-carousel--empty { padding: 40px; text-align: center; color: var(--jvb-muted); border: 1px dashed var(--jvb-border); border-radius: 8px; }

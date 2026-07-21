@@ -59,6 +59,8 @@ if ($action === 'frame') {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="<?= jvb_asset_url('frontend.css') ?>">
 <link rel="stylesheet" href="<?= jvb_asset_url('frame.css') ?>">
+<link rel="stylesheet" href="/static/vendor/swiper/swiper-bundle.min.css">
+<script src="/static/vendor/swiper/swiper-bundle.min.js"></script>
 </head>
 <body class="jvb-frame jvb-frame--<?= htmlspecialchars($device, ENT_QUOTES) ?>">
 <?= $html ?>
@@ -209,6 +211,12 @@ switch ($action) {
             // stays fully styled even if the plugin is later uninstalled
             // (static assets under static/vendor get removed by the CMS).
             $rendered = jvb_render_layout($pdo, $pubLayout, $post, ['inline_css' => true]);
+            // Embed frontend.js too — behaviors (accordion, carousel init via
+            // core-shipped Swiper, animations) keep working after uninstall.
+            $jsFile = dirname(__DIR__) . '/assets/frontend.js';
+            if (is_file($jsFile)) {
+                $rendered .= '<script>' . file_get_contents($jsFile) . '</script>';
+            }
             $pdo->prepare('UPDATE `posts` SET content = ? WHERE id = ?')->execute([$rendered, (int)$post['id']]);
         }
         jvb_json(['success' => true, 'post_id' => (int)$post['id'], 'published_at' => date('Y-m-d H:i:s')]);

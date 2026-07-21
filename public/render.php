@@ -180,6 +180,41 @@ function jvb_element_types(): array {
                 ['key' => 'lightbox', 'label' => 'Lightbox', 'type' => 'toggle'],
             ],
         ],
+        'carousel' => [
+            'label' => 'Carousel', 'group' => 'content', 'icon' => 'image',
+            'defaults' => ['images' => [], 'per_view' => ['d' => 1, 't' => 1, 'm' => 1], 'gap' => 16, 'ratio' => '16/9', 'effect' => 'slide', 'autoplay' => false, 'delay' => 4000, 'loop' => true, 'nav' => true, 'dots' => true, 'radius' => ''],
+            'fields' => [
+                ['key' => 'images', 'label' => 'Slides', 'type' => 'gallery'],
+                ['key' => 'per_view', 'label' => 'Slides per view', 'type' => 'slider', 'min' => 1, 'max' => 4, 'devices' => true],
+                ['key' => 'gap', 'label' => 'Gap (px)', 'type' => 'number'],
+                ['key' => 'ratio', 'label' => 'Slide ratio', 'type' => 'select', 'options' => ['16/9' => '16:9', '4/3' => '4:3', '1/1' => '1:1', '3/4' => '3:4', '21/9' => '21:9']],
+                ['key' => 'effect', 'label' => 'Effect', 'type' => 'select', 'options' => ['slide' => 'Slide', 'fade' => 'Fade']],
+                ['key' => 'autoplay', 'label' => 'Autoplay', 'type' => 'toggle'],
+                ['key' => 'delay', 'label' => 'Autoplay delay (ms)', 'type' => 'number', 'show_if' => ['autoplay' => true]],
+                ['key' => 'loop', 'label' => 'Loop', 'type' => 'toggle'],
+                ['key' => 'nav', 'label' => 'Navigation arrows', 'type' => 'toggle'],
+                ['key' => 'dots', 'label' => 'Pagination dots', 'type' => 'toggle'],
+                ['key' => 'radius', 'label' => 'Corner radius (px)', 'type' => 'number'],
+            ],
+        ],
+        'card' => [
+            'label' => 'Card', 'group' => 'content', 'icon' => 'panel-top',
+            'defaults' => ['image' => '', 'img_alt' => '', 'badge' => '', 'title' => 'Card title', 'text' => 'Supporting text for this card.', 'btn_text' => '', 'btn_url' => '', 'layout' => 'top', 'radius' => 12, 'shadow' => true, 'color' => 'primary', 'align' => ['d' => '']],
+            'fields' => [
+                ['key' => 'image', 'label' => 'Image', 'type' => 'media'],
+                ['key' => 'img_alt', 'label' => 'Image alt text', 'type' => 'text'],
+                ['key' => 'badge', 'label' => 'Badge text (optional)', 'type' => 'text'],
+                ['key' => 'title', 'label' => 'Title', 'type' => 'text'],
+                ['key' => 'text', 'label' => 'Text', 'type' => 'textarea'],
+                ['key' => 'btn_text', 'label' => 'Button text (optional)', 'type' => 'text'],
+                ['key' => 'btn_url', 'label' => 'Button URL', 'type' => 'text'],
+                ['key' => 'layout', 'label' => 'Layout', 'type' => 'select', 'options' => ['top' => 'Image top', 'left' => 'Image left']],
+                ['key' => 'radius', 'label' => 'Corner radius (px)', 'type' => 'number'],
+                ['key' => 'shadow', 'label' => 'Shadow', 'type' => 'toggle'],
+                ['key' => 'color', 'label' => 'Accent color', 'type' => 'color', 'token' => true],
+                ['key' => 'align', 'label' => 'Alignment', 'type' => 'align', 'devices' => true],
+            ],
+        ],
         'testimonial' => [
             'label' => 'Testimonial', 'group' => 'content', 'icon' => 'quote',
             'defaults' => ['quote' => 'This product changed everything for us.', 'name' => 'Jane Doe', 'role' => 'CEO, Company', 'avatar' => '', 'rating' => 5, 'color' => 'primary', 'align' => ['d' => '']],
@@ -661,6 +696,79 @@ function jvb_render_element(PDO $pdo, array $el, array $ctx): string {
                 $out .= '<' . $tag . ' class="jvb-gallery__item"' . $href . '><img src="' . jvb_e($url) . '" alt="' . jvb_e($img['alt'] ?? '') . '" loading="lazy" style="' . $radius . '"></' . $tag . '>';
             }
             $inner = $out . '</div>';
+            break;
+        }
+        case 'carousel': {
+            $images = is_array($s['images'] ?? null) ? $s['images'] : [];
+            $pv = is_array($s['per_view'] ?? null) ? $s['per_view'] : [];
+            $perD = max(1, min(4, (int)jvb_dev($pv, 'd', 1)));
+            $perT = max(1, min(4, (int)jvb_dev($pv, 't', $perD)));
+            $perM = max(1, min(4, (int)jvb_dev($pv, 'm', $perT)));
+            $gap = is_numeric($s['gap'] ?? null) ? max(0, (int)$s['gap']) : 16;
+            $effect = ($s['effect'] ?? '') === 'fade' ? 'fade' : 'slide';
+            $delay = is_numeric($s['delay'] ?? null) ? max(1000, (int)$s['delay']) : 4000;
+            $loop = !empty($s['loop']);
+            $nav = !empty($s['nav']);
+            $dots = !empty($s['dots']);
+            $radius = (isset($s['radius']) && is_numeric($s['radius'])) ? max(0, (int)$s['radius']) : 0;
+            $ratioRaw = preg_replace('/[^0-9\/]/', '', (string)($s['ratio'] ?? '16/9')) ?: '16/9';
+            $ratioCss = str_replace('/', ' / ', $ratioRaw);
+            $domId = 'jvbcr-' . ($id !== '' ? preg_replace('/[^a-zA-Z0-9_-]/', '', $id) : substr(md5(uniqid('', true)), 0, 8));
+            $slides = '';
+            foreach ($images as $img) {
+                if (!is_array($img)) continue;
+                $url = trim((string)($img['url'] ?? ''));
+                if ($url === '') continue;
+                $slides .= '<div class="swiper-slide jvb-carousel__slide"><img src="' . jvb_e($url) . '" alt="' . jvb_e((string)($img['alt'] ?? '')) . '" loading="lazy"></div>';
+            }
+            if ($slides === '') { $inner = '<div class="jvb-carousel jvb-carousel--empty">No slides</div>'; break; }
+            $cfg = [
+                'slidesPerView' => $perM,
+                'spaceBetween' => $gap,
+                'loop' => $loop,
+                'effect' => $effect,
+                'breakpoints' => [
+                    768 => ['slidesPerView' => $perT],
+                    1025 => ['slidesPerView' => $perD],
+                ],
+            ];
+            if ($effect === 'fade') $cfg['fadeEffect'] = ['crossFade' => true];
+            if (!empty($s['autoplay'])) $cfg['autoplay'] = ['delay' => $delay, 'disableOnInteraction' => false, 'pauseOnMouseEnter' => true];
+            if ($nav) $cfg['navigation'] = ['nextEl' => '#' . $domId . ' .jvb-carousel__next', 'prevEl' => '#' . $domId . ' .jvb-carousel__prev'];
+            if ($dots) $cfg['pagination'] = ['el' => '#' . $domId . ' .jvb-carousel__dots', 'clickable' => true];
+            $style = '--jvb-cr-ratio:' . $ratioCss . ($radius > 0 ? ';--jvb-cr-radius:' . $radius . 'px' : '');
+            // Swiper ships with CMS core (layout.php) — survives plugin uninstall.
+            $inner = '<div id="' . jvb_e($domId) . '" class="jvb-carousel swiper" data-jvb-carousel="' . jvb_e(json_encode($cfg, JSON_UNESCAPED_SLASHES)) . '" style="' . $style . '">'
+                . '<div class="swiper-wrapper">' . $slides . '</div>'
+                . ($nav ? '<div class="jvb-carousel__prev swiper-button-prev"></div><div class="jvb-carousel__next swiper-button-next"></div>' : '')
+                . ($dots ? '<div class="jvb-carousel__dots swiper-pagination"></div>' : '')
+                . '</div>';
+            break;
+        }
+        case 'card': {
+            $color = jvb_color($s['color'] ?? 'primary') ?: 'var(--jvb-primary)';
+            $layout = ($s['layout'] ?? '') === 'left' ? 'left' : 'top';
+            $radius = (isset($s['radius']) && is_numeric($s['radius'])) ? max(0, (int)$s['radius']) : 12;
+            $imgUrl = trim((string)($s['image'] ?? ''));
+            $badge = trim((string)($s['badge'] ?? ''));
+            $btnText = trim((string)($s['btn_text'] ?? ''));
+            $btnUrl = trim((string)($s['btn_url'] ?? '')) ?: '#';
+            $media = '';
+            if ($imgUrl !== '') {
+                $media = '<div class="jvb-card__media"><img src="' . jvb_e($imgUrl) . '" alt="' . jvb_e((string)($s['img_alt'] ?? '')) . '" loading="lazy">'
+                    . ($badge !== '' ? '<span class="jvb-card__badge" style="--jvb-card:' . jvb_e($color) . '">' . jvb_e($badge) . '</span>' : '')
+                    . '</div>';
+            }
+            $btn = $btnText !== ''
+                ? '<a class="jvb-btn jvb-btn--solid jvb-btn--md" href="' . jvb_e($btnUrl) . '" style="--jvb-btn:' . jvb_e($color) . '">' . jvb_e($btnText) . '</a>'
+                : '';
+            $inner = '<div class="jvb-card jvb-card--' . $layout . (!empty($s['shadow']) ? ' jvb-card--shadow' : '') . '" style="--jvb-card-radius:' . $radius . 'px">'
+                . $media
+                . '<div class="jvb-card__body">'
+                . '<h3 class="jvb-card__title">' . jvb_e((string)($s['title'] ?? '')) . '</h3>'
+                . '<p class="jvb-card__text">' . jvb_e((string)($s['text'] ?? '')) . '</p>'
+                . $btn
+                . '</div></div>';
             break;
         }
         case 'testimonial': {
