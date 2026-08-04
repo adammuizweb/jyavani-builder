@@ -105,19 +105,23 @@ function jvb_seed_starter_templates(PDO $pdo): void {
     static $done = false;
     if ($done) return;
     $done = true;
-    $cnt = (int)$pdo->query("SELECT COUNT(*) FROM `jvb_templates` WHERE is_starter = 1")->fetchColumn();
-    if ($cnt > 0) return;
+    try {
+        $cnt = (int)$pdo->query("SELECT COUNT(*) FROM `jvb_templates` WHERE is_starter = 1")->fetchColumn();
+        if ($cnt > 0) return;
 
-    $starters = jvb_starter_templates();
-    $sections = [];
-    foreach ($starters as $tpl) {
-        if ($tpl['type'] === 'page') {
-            // Assemble the page from the section starters above
-            $tpl['layout']['sections'] = array_map(static fn($s) => $s['layout'], $sections);
-        } else {
-            $sections[] = $tpl;
+        $starters = jvb_starter_templates();
+        $sections = [];
+        foreach ($starters as $tpl) {
+            if ($tpl['type'] === 'page') {
+                // Assemble the page from the section starters above
+                $tpl['layout']['sections'] = array_map(static fn($s) => $s['layout'], $sections);
+            } else {
+                $sections[] = $tpl;
+            }
+            jvb_save_template($pdo, $tpl['title'], $tpl['type'], $tpl['layout'], null);
+            $pdo->prepare('UPDATE `jvb_templates` SET is_starter = 1 WHERE id = ?')->execute([(int)$pdo->lastInsertId()]);
         }
-        jvb_save_template($pdo, $tpl['title'], $tpl['type'], $tpl['layout'], null);
-        $pdo->prepare('UPDATE `jvb_templates` SET is_starter = 1 WHERE id = ?')->execute([(int)$pdo->lastInsertId()]);
+    } catch (Throwable $e) {
+        error_log('[jyavani-builder] Could not seed starter templates: ' . $e->getMessage());
     }
 }
