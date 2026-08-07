@@ -536,7 +536,7 @@ function jvb_icon_svg(string $name): string {
 function jvb_asset_url(string $file): string {
     $path = __DIR__ . '/assets/' . $file;
     $v = is_file($path) ? (int)filemtime($path) : 0;
-    return '/static/vendor/jyavani-builder/' . $file . ($v ? '?v=' . $v : '');
+    return '/static/plugins/jyavani-builder/' . $file . ($v ? '?v=' . $v : '');
 }
 
 // Icon map for JS chrome (builder + frame), keyed by name → inline SVG.

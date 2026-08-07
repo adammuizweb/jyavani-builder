@@ -1,6 +1,6 @@
 {
   "name": "jyavani-builder",
-  "version": "3.2.0",
+  "version": "3.2.2",
   "title": "Jy Builder",
   "icon": "icon.svg",
   "description": "Visual drag-and-drop builder for Jyavani CMS — works with articles, pages, and themes. WYSIWYG iframe canvas with inline editing, sections/rows/columns/elements tree, design tokens, responsive per-device controls, draft/publish workflow, revisions, template library, entrance animations, shape dividers, dynamic posts grid, and native Form Builder integration.",
@@ -19,12 +19,12 @@
   },
   "static": {
     "copy": [
-      {"from": "assets/builder.css", "to": "static/vendor/jyavani-builder/builder.css"},
-      {"from": "assets/builder.js", "to": "static/vendor/jyavani-builder/builder.js"},
-      {"from": "assets/frame.css", "to": "static/vendor/jyavani-builder/frame.css"},
-      {"from": "assets/frame.js", "to": "static/vendor/jyavani-builder/frame.js"},
-      {"from": "assets/frontend.css", "to": "static/vendor/jyavani-builder/frontend.css"},
-      {"from": "assets/frontend.js", "to": "static/vendor/jyavani-builder/frontend.js"}
+      {"from": "assets/builder.css", "to": "static/plugins/jyavani-builder/builder.css"},
+      {"from": "assets/builder.js", "to": "static/plugins/jyavani-builder/builder.js"},
+      {"from": "assets/frame.css", "to": "static/plugins/jyavani-builder/frame.css"},
+      {"from": "assets/frame.js", "to": "static/plugins/jyavani-builder/frame.js"},
+      {"from": "assets/frontend.css", "to": "static/plugins/jyavani-builder/frontend.css"},
+      {"from": "assets/frontend.js", "to": "static/plugins/jyavani-builder/frontend.js"}
     ]
   },
   "admin": {
