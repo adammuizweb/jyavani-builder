@@ -17,7 +17,8 @@ const JVB_BP_MOBILE = 767;
 // ---------------- Schema ----------------
 
 function jvb_ensure_schema(PDO $pdo): void {
-    $pdo->exec("
+    try {
+        $pdo->exec("
         CREATE TABLE IF NOT EXISTS `jvb_layouts` (
             `post_id` int(10) unsigned NOT NULL,
             `status` varchar(10) NOT NULL DEFAULT 'draft',
@@ -28,8 +29,8 @@ function jvb_ensure_schema(PDO $pdo): void {
             `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
             PRIMARY KEY (`post_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
-    $pdo->exec("
+        ");
+        $pdo->exec("
         CREATE TABLE IF NOT EXISTS `jvb_revisions` (
             `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             `post_id` int(10) unsigned NOT NULL,
@@ -40,8 +41,8 @@ function jvb_ensure_schema(PDO $pdo): void {
             PRIMARY KEY (`id`),
             KEY `post_id` (`post_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
-    $pdo->exec("
+        ");
+        $pdo->exec("
         CREATE TABLE IF NOT EXISTS `jvb_templates` (
             `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             `title` varchar(191) NOT NULL,
@@ -54,7 +55,10 @@ function jvb_ensure_schema(PDO $pdo): void {
             PRIMARY KEY (`id`),
             KEY `type` (`type`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
+        ");
+    } catch (Throwable $e) {
+        error_log('[jyavani-builder] Could not initialize schema: ' . $e->getMessage());
+    }
 }
 
 // ---------------- Layout storage ----------------
@@ -672,6 +676,12 @@ if (function_exists('register_frontend_route')) {
 // ---------------- Lifecycle ----------------
 
 add_action('admin_init', function (): void {
+    // Schema and starter templates are only needed by Builder screens. Running
+    // them for every dashboard AJAX request can break unrelated integrations.
+    $page = (string)($_GET['page'] ?? '');
+    if ($page !== 'admin/tools/jyavani-builder' && !str_starts_with($page, 'admin/tools/jyavani-builder/')) {
+        return;
+    }
     $pdo = $GLOBALS['pdo'] ?? null;
     if ($pdo instanceof PDO) {
         jvb_ensure_schema($pdo);
