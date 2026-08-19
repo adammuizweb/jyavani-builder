@@ -8,6 +8,7 @@ if (!defined('DASHBOARD_CONTEXT')) exit;
 $csrf = function_exists('csrf_token') ? csrf_token() : '';
 $postId = (int)($post['id'] ?? 0);
 $permalink = $postId > 0 ? '/' . rawurlencode((string)($post['slug'] ?? '')) . '/' : '';
+$canChangeOwner = $postId > 0 && $canManageAny && jvb_user_can_content_action($pdo, $uid, $post, 'change_owner');
 
 $boot = [
     'postId'    => $postId,
@@ -153,7 +154,7 @@ $v = max(
             <option value="private"<?= ($post['status'] ?? '') === 'private' ? ' selected' : '' ?>>Private</option>
           </select>
         </label>
-        <?php if ($role === 'admin'): ?>
+        <?php if ($canChangeOwner): ?>
         <label class="jvb-post-modal__field" id="jvbPostAuthorWrap">
           <span>Author</span>
           <select id="jvbPostAuthor">

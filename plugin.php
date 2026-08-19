@@ -1,13 +1,14 @@
 <?php
-// /plugins/jyavani-builder/plugin.php — Jy Builder v3.0
+// /plugins/jyavani-builder/plugin.php — Jy Builder v3.2.3
 declare(strict_types=1);
 
 // Loaded on every request (admin + frontend) via plugin_load_active(). No context guard here —
 // guards belong in the admin page files.
 
-const JVB_VERSION = '2.1.0';
+const JVB_VERSION = '3.2.3';
 const JVB_LAYOUT_VERSION = 2;
 const JVB_SETTINGS_TOKENS_KEY = 'jvb_design_tokens';
+const JVB_DYNAMIC_ACCESS_MIGRATED_KEY = 'jvb_dynamic_access_migrated';
 const JVB_MAX_REVISIONS = 20;
 
 // Breakpoints (documented; tablet ≤ 1024px, mobile ≤ 767px)
@@ -361,7 +362,7 @@ function jvb_tokens_css(array $tokens): string {
 // ---------------- Templates ----------------
 
 function jvb_list_templates(PDO $pdo, ?string $type = null): array {
-    $sql = 'SELECT id, title, type, is_starter, created_at, updated_at FROM `jvb_templates`';
+    $sql = 'SELECT id, title, type, is_starter, created_by, created_at, updated_at FROM `jvb_templates`';
     $args = [];
     if ($type !== null) { $sql .= ' WHERE type = ?'; $args[] = $type; }
     $sql .= ' ORDER BY is_starter DESC, updated_at DESC';
@@ -401,25 +402,104 @@ function jvb_require_editorial(PDO $pdo): array {
     if (!function_exists('is_logged_in') || !is_logged_in()) {
         jvb_json(['success' => false, 'message' => 'Not logged in'], 401);
     }
-    $role = function_exists('current_user_role') ? current_user_role($pdo) : null;
-    if (!in_array($role, ['author', 'editor', 'admin'], true)) {
+    $uid = function_exists('current_user_id') ? (int)current_user_id() : 0;
+    if ($uid <= 0 || !function_exists('user_can') || !user_can($pdo, $uid, 'plugin.jyavani-builder.workspace.access')) {
         jvb_json(['success' => false, 'message' => 'Insufficient permissions'], 403);
     }
-    $uid = function_exists('current_user_id') ? (int)current_user_id() : 0;
-    return ['uid' => $uid, 'role' => $role];
+    $role = function_exists('current_user_role') ? current_user_role($pdo) : null;
+    $manageAny = user_can($pdo, $uid, 'plugin.jyavani-builder.content.manage-any');
+    return ['uid' => $uid, 'role' => $role, 'manage_any' => $manageAny];
 }
 
-// Ownership check: author/editor can only access their own posts.
-// Returns the post row on success, or calls jvb_json(403) and exits.
-function jvb_require_post_owner(PDO $pdo, int $postId, int $uid, string $role): array {
-    $st = $pdo->prepare('SELECT id, title, slug, type, status, created_by FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
+function jvb_can_preview_draft(PDO $pdo, int $postId): bool {
+    $uid = function_exists('current_user_id') ? (int)current_user_id() : (int)($_SESSION['user_id'] ?? 0);
+    if ($uid <= 0 || !function_exists('user_can') || !user_can($pdo, $uid, 'plugin.jyavani-builder.workspace.access')) return false;
+    $st = $pdo->prepare('SELECT type, created_by FROM posts WHERE id = ? AND is_deleted = 0 LIMIT 1');
     $st->execute([$postId]);
     $post = $st->fetch(PDO::FETCH_ASSOC);
-    if (!is_array($post)) jvb_json(['success' => false, 'message' => 'Post not found'], 404);
-    if ($role !== 'admin' && (int)($post['created_by'] ?? 0) !== $uid) {
-        jvb_json(['success' => false, 'message' => 'Access denied: you can only edit your own posts'], 403);
+    if (!is_array($post) || !jvb_user_can_content_action($pdo, $uid, $post, 'update')) return false;
+    return user_can($pdo, $uid, 'plugin.jyavani-builder.content.manage-any')
+        || (int)$post['created_by'] === $uid;
+}
+
+function jvb_layout_has_restricted_elements(array $layout): bool {
+    $restricted = [];
+    foreach (jvb_element_types() as $type => $definition) {
+        if (!empty($definition['admin'])) $restricted[(string)$type] = true;
     }
-    return $post;
+    $walk = static function (array $value) use (&$walk, $restricted): bool {
+        if (isset($value['type']) && is_string($value['type']) && isset($restricted[$value['type']])) return true;
+        foreach ($value as $child) {
+            if (is_array($child) && $walk($child)) return true;
+        }
+        return false;
+    };
+    return $walk($layout);
+}
+
+function jvb_user_can_content_action(PDO $pdo, int $uid, array $post, string $action): bool {
+    if ($uid <= 0) return false;
+    $type = (string)($post['type'] ?? '');
+    if ($type === 'theme') {
+        $actor = function_exists('authorization_actor') ? authorization_actor($pdo, $uid) : null;
+        return $actor !== null && $actor['is_site_owner'] === true;
+    }
+    $resource = $type === 'page' ? 'pages' : ($type === 'article' ? 'posts' : '');
+    if ($resource === '' || !function_exists('user_can')) return false;
+    return user_can($pdo, $uid, 'core.' . $resource . '.' . $action, ['owner_id' => (int)($post['created_by'] ?? $uid)]);
+}
+
+function jvb_require_content_action(PDO $pdo, int $uid, array $post, string $action): void {
+    if (!jvb_user_can_content_action($pdo, $uid, $post, $action)) {
+        jvb_json(['success' => false, 'message' => 'Core content permission denied'], 403);
+    }
+}
+
+function jvb_user_can_restricted_elements(PDO $pdo, int $uid, ?array $post = null): bool {
+    if ($uid <= 0 || !function_exists('user_can')) return false;
+    if ($post !== null) {
+        $type = (string)($post['type'] ?? '');
+        if ($type === 'page') return user_can($pdo, $uid, 'core.pages.unfiltered_html', ['owner_id' => (int)($post['created_by'] ?? $uid)]);
+        if ($type === 'article') return user_can($pdo, $uid, 'core.posts.unfiltered_html', ['owner_id' => (int)($post['created_by'] ?? $uid)]);
+    }
+    if (user_can($pdo, $uid, 'core.pages.unfiltered_html') || user_can($pdo, $uid, 'core.posts.unfiltered_html')) return true;
+    $actor = function_exists('authorization_actor') ? authorization_actor($pdo, $uid) : null;
+    return $actor !== null && $actor['is_site_owner'] === true;
+}
+
+function jvb_current_user_can_edit_post(PDO $pdo, array $post): bool {
+    $uid = function_exists('current_user_id') ? (int)current_user_id() : (int)($_SESSION['user_id'] ?? 0);
+    return $uid > 0 && function_exists('user_can')
+        && user_can($pdo, $uid, 'plugin.jyavani-builder.workspace.access')
+        && jvb_user_can_content_action($pdo, $uid, $post, 'update');
+}
+
+function jvb_migrate_legacy_permissions(PDO $pdo): void {
+    if (!function_exists('settings_get') || !function_exists('settings_set')
+        || settings_get($pdo, JVB_DYNAMIC_ACCESS_MIGRATED_KEY, '0') === '1') return;
+    $permissions = [
+        'plugin.jyavani-builder.content.manage-any',
+        'plugin.jyavani-builder.site-settings.manage',
+    ];
+    $placeholders = implode(',', array_fill(0, count($permissions), '?'));
+    $check = $pdo->prepare("SELECT COUNT(*) FROM permissions WHERE permission_key IN ($placeholders) AND is_active = 1");
+    $check->execute($permissions);
+    if ((int)$check->fetchColumn() !== count($permissions)) return;
+
+    $started = !$pdo->inTransaction();
+    try {
+        if ($started) $pdo->beginTransaction();
+        $role = $pdo->query("SELECT id FROM roles WHERE slug = 'admin' AND is_system = 1 LIMIT 1");
+        $roleId = $role !== false ? (int)$role->fetchColumn() : 0;
+        if ($roleId <= 0) throw new RuntimeException('Administrator compatibility role not found');
+        $grant = $pdo->prepare("INSERT INTO role_permissions (role_id, permission_key, scope) VALUES (?, ?, 'global') ON DUPLICATE KEY UPDATE scope = VALUES(scope)");
+        foreach ($permissions as $permission) $grant->execute([$roleId, $permission]);
+        settings_set($pdo, JVB_DYNAMIC_ACCESS_MIGRATED_KEY, '1', 1);
+        if ($started) $pdo->commit();
+    } catch (Throwable $e) {
+        if ($started && $pdo->inTransaction()) $pdo->rollBack();
+        error_log('[jyavani-builder] Legacy permission migration failed: ' . $e->getMessage());
+    }
 }
 
 function jvb_json(array $payload, int $status = 200): never {
@@ -430,7 +510,7 @@ function jvb_json(array $payload, int $status = 200): never {
 }
 
 function jvb_csrf_ok(): bool {
-    if (!function_exists('csrf_check')) return true;
+    if (!function_exists('csrf_check')) return false;
     $tok = (string)($_POST['csrf_token'] ?? $_GET['csrf_token'] ?? '');
     if ($tok === '') {
         $raw = file_get_contents('php://input');
@@ -536,11 +616,9 @@ function jvb_icon_svg(string $name): string {
     return $cache[$name];
 }
 
-// Cache-busting asset URL helper: appends ?v=<filemtime> to force browser refresh.
+// Keep copied static assets on the same cache key as the plugin release.
 function jvb_asset_url(string $file): string {
-    $path = __DIR__ . '/assets/' . $file;
-    $v = is_file($path) ? (int)filemtime($path) : 0;
-    return '/static/plugins/jyavani-builder/' . $file . ($v ? '?v=' . $v : '');
+    return '/static/plugins/jyavani-builder/' . $file . '?v=' . JVB_VERSION;
 }
 
 // Icon map for JS chrome (builder + frame), keyed by name → inline SVG.
@@ -558,19 +636,10 @@ add_filter('post_content', function (string $html, array $post = []): string {
 
     // Draft preview: ?jvb_preview=1 for logged-in editorial users
     $which = 'published';
-    if (isset($_GET['jvb_preview']) && function_exists('is_logged_in') && is_logged_in()) {
-        $role = function_exists('current_user_role') ? current_user_role($pdo) : null;
-        if (in_array($role, ['editor', 'admin'], true)) $which = 'draft';
-    }
+    if (isset($_GET['jvb_preview']) && jvb_can_preview_draft($pdo, $postId)) $which = 'draft';
 
     $layout = jvb_get_layout($pdo, $postId, $which);
-    if ($layout === null) {
-        // Auto-migrate v1 layouts on first access (draft only; does not publish)
-        if (jvb_get_layout_row($pdo, $postId) === null && jvb_migrate_v1($pdo, $postId)) {
-            $layout = jvb_get_layout($pdo, $postId, $which);
-        }
-        if ($layout === null) return $html;
-    }
+    if ($layout === null) return $html;
 
     jvb_mark_rendered();
     $out = jvb_render_layout($pdo, $layout, $post);
@@ -610,10 +679,7 @@ add_filter('layout_slot_html', function (string $html, string $slot = '', array 
     if ($postId === null) return $html;
 
     $which = 'published';
-    if (isset($_GET['jvb_preview']) && function_exists('is_logged_in') && is_logged_in()) {
-        $role = function_exists('current_user_role') ? current_user_role($pdo) : null;
-        if (in_array($role, ['editor', 'admin'], true)) $which = 'draft';
-    }
+    if (isset($_GET['jvb_preview']) && jvb_can_preview_draft($pdo, $postId)) $which = 'draft';
 
     $layout = jvb_get_layout($pdo, $postId, $which);
     if ($layout === null) return $html; // no published builder layout → theme slot
@@ -684,6 +750,9 @@ add_action('admin_init', function (): void {
     }
     $pdo = $GLOBALS['pdo'] ?? null;
     if ($pdo instanceof PDO) {
+        $uid = function_exists('current_user_id') ? (int)current_user_id() : 0;
+        if ($uid <= 0 || !function_exists('user_can') || !user_can($pdo, $uid, 'plugin.jyavani-builder.workspace.access')) return;
+        jvb_migrate_legacy_permissions($pdo);
         jvb_ensure_schema($pdo);
         jvb_seed_starter_templates($pdo);
     }
@@ -696,13 +765,18 @@ add_action('plugin_uninstall', function (string $name): void {
     $pdo->exec('DROP TABLE IF EXISTS `jvb_layouts`');
     $pdo->exec('DROP TABLE IF EXISTS `jvb_revisions`');
     $pdo->exec('DROP TABLE IF EXISTS `jvb_templates`');
-    if (function_exists('settings_set')) settings_set($pdo, JVB_SETTINGS_TOKENS_KEY, '', 1);
+    if (function_exists('settings_set')) {
+        settings_set($pdo, JVB_SETTINGS_TOKENS_KEY, '', 1);
+        settings_set($pdo, JVB_DYNAMIC_ACCESS_MIGRATED_KEY, '0', 1);
+    }
 });
 
 // ---------------- CMS Core Hooks (editor integration) ----------------
 
 // Add Builder radio option to post/page edit forms
 add_filter('editor_mode_options', function (array $modes, array $post): array {
+    $pdo = $GLOBALS['pdo'] ?? null;
+    if (!($pdo instanceof PDO) || !jvb_current_user_can_edit_post($pdo, $post)) return $modes;
     $modes['builder'] = 'Builder (visual)';
     return $modes;
 }, 10, 2);
@@ -710,6 +784,7 @@ add_filter('editor_mode_options', function (array $modes, array $post): array {
 // Render builder area after Quill/CodeMirror areas
 add_action('editor_mode_after_areas', function (array $post, string $chosenMode): void {
     $pdo = $GLOBALS['pdo'] ?? null;
+    if (!($pdo instanceof PDO) || !jvb_current_user_can_edit_post($pdo, $post)) return;
     $postId = (int)($post['id'] ?? 0);
     $hasBuilderLayout = false;
     if ($pdo instanceof PDO && $postId > 0) {
@@ -745,6 +820,8 @@ add_action('editor_mode_after_areas', function (array $post, string $chosenMode)
 add_filter('post_list_select', function (string $select, string $where): string {
     $pdo = $GLOBALS['pdo'] ?? null;
     if (!($pdo instanceof PDO)) return $select;
+    $uid = function_exists('current_user_id') ? (int)current_user_id() : 0;
+    if ($uid <= 0 || !function_exists('user_can') || !user_can($pdo, $uid, 'plugin.jyavani-builder.workspace.access')) return $select;
     try { $pdo->query('SELECT 1 FROM jvb_layouts LIMIT 1'); } catch (Throwable $e) { return $select; }
     return $select . ', jvb.status AS jvb_status';
 }, 10, 2);
@@ -753,6 +830,8 @@ add_filter('post_list_select', function (string $select, string $where): string 
 add_filter('post_list_join', function (string $join, string $where): string {
     $pdo = $GLOBALS['pdo'] ?? null;
     if (!($pdo instanceof PDO)) return $join;
+    $uid = function_exists('current_user_id') ? (int)current_user_id() : 0;
+    if ($uid <= 0 || !function_exists('user_can') || !user_can($pdo, $uid, 'plugin.jyavani-builder.workspace.access')) return $join;
     try { $pdo->query('SELECT 1 FROM jvb_layouts LIMIT 1'); } catch (Throwable $e) { return $join; }
     return $join . ' LEFT JOIN jvb_layouts jvb ON jvb.post_id = p.id';
 }, 10, 2);

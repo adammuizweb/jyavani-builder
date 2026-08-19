@@ -5,7 +5,7 @@ declare(strict_types=1);
 if (!defined('DASHBOARD_CONTEXT')) exit;
 /** @var PDO $pdo @var string $role */
 
-if ($role !== 'admin') { echo '<div class="jvba-empty">Admin only.</div>'; return; }
+if (!$canManageSite) { echo '<div class="jvba-empty">Access denied.</div>'; return; }
 
 jvb_admin_css();
 $csrf = function_exists('csrf_token') ? csrf_token() : '';
@@ -13,7 +13,7 @@ $flash = '';
 $flashOk = true;
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    $okCsrf = function_exists('csrf_check') ? csrf_check($_POST['csrf_token'] ?? '') : true;
+    $okCsrf = function_exists('csrf_check') && csrf_check($_POST['csrf_token'] ?? '');
     if (!$okCsrf) {
         $flash = 'Invalid CSRF token.'; $flashOk = false;
     } else {

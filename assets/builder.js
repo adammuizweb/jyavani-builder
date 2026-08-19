@@ -210,7 +210,11 @@
   // ───────────────────────── Frame ─────────────────────────
   function refreshFrame() {
     S.frameReady = false;
-    api('frame_stash', { layout: S.layout }).then(function (res) {
+    api('frame_stash', {
+      layout: S.layout,
+      post_id: S.postId,
+      post_type: (S._pendingPostSettings && S._pendingPostSettings.type) || S.post.type || 'theme',
+    }).then(function (res) {
       if (!res.success) { toast('Frame error', true); return; }
       var url = boot.frameUrl + '&preview_key=' + encodeURIComponent(res.key) + '&_=' + Date.now();
       $('#jvbFrame').src = url;

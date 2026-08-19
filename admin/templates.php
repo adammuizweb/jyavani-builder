@@ -11,14 +11,22 @@ $flash = '';
 $flashOk = true;
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    $okCsrf = function_exists('csrf_check') ? csrf_check($_POST['csrf_token'] ?? '') : true;
+    $okCsrf = function_exists('csrf_check') && csrf_check($_POST['csrf_token'] ?? '');
     $act = (string)($_POST['jvb_action'] ?? '');
     if (!$okCsrf) {
         $flash = 'Invalid CSRF token.'; $flashOk = false;
     } elseif ($act === 'delete') {
-        jvb_delete_template($pdo, (int)($_POST['template_id'] ?? 0));
-        $flash = 'Template deleted.';
+        $templateId = (int)($_POST['template_id'] ?? 0);
+        $template = jvb_get_template($pdo, $templateId);
+        if ($template === null || !empty($template['is_starter']) || (!$canManageAny && (int)($template['created_by'] ?? 0) !== $uid)) {
+            $flash = 'Template not found or access denied.'; $flashOk = false;
+        } else {
+            jvb_delete_template($pdo, $templateId);
+            $flash = 'Template deleted.';
+        }
     } elseif ($act === 'reseed') {
+        if (!$canManageSite) { $flash = 'Access denied.'; $flashOk = false; }
+        else {
         $pdo->exec('DELETE FROM `jvb_templates` WHERE is_starter = 1');
         // reset the static guard by calling seed directly
         $cnt = 0;
@@ -39,6 +47,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $cnt++;
         }
         $flash = $cnt . ' starter templates restored.';
+        }
     }
 }
 
@@ -49,11 +58,11 @@ $templates = jvb_list_templates($pdo);
     <h1>Template Library</h1>
     <div class="jvba-actions">
       <a class="jvba-btn" href="<?= jvb_url() ?>">‹ Pages</a>
-      <form method="post" style="display:inline" onsubmit="return confirm('Restore starter templates? Your own templates are kept.')">
+      <?php if ($canManageSite): ?><form method="post" style="display:inline" onsubmit="return confirm('Restore starter templates? Your own templates are kept.')">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
         <input type="hidden" name="jvb_action" value="reseed">
         <button class="jvba-btn" type="submit"><?= svg_ico('refresh-cw', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> Restore Starters</button>
-      </form>
+      </form><?php endif; ?>
     </div>
   </div>
 
@@ -79,7 +88,7 @@ $templates = jvb_list_templates($pdo);
           <td><?= !empty($tpl['is_starter']) ? '<span class="jvba-badge published">Starter</span>' : '<span class="jvba-badge none">Custom</span>' ?></td>
           <td class="jvba-sub"><?= htmlspecialchars(date('d M Y H:i', strtotime((string)$tpl['updated_at'])), ENT_QUOTES) ?></td>
           <td>
-            <?php if (empty($tpl['is_starter'])): ?>
+            <?php if (empty($tpl['is_starter']) && ($canManageAny || (int)($tpl['created_by'] ?? 0) === $uid)): ?>
             <form method="post" style="display:inline" onsubmit="return confirm('Delete this template?')">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
               <input type="hidden" name="jvb_action" value="delete">

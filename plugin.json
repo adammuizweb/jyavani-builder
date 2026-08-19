@@ -1,6 +1,6 @@
 {
   "name": "jyavani-builder",
-  "version": "3.2.2",
+  "version": "3.2.3",
   "title": "Jy Builder",
   "icon": "icon.svg",
   "description": "Visual drag-and-drop builder for Jyavani CMS — works with articles, pages, and themes. WYSIWYG iframe canvas with inline editing, sections/rows/columns/elements tree, design tokens, responsive per-device controls, draft/publish workflow, revisions, template library, entrance animations, shape dividers, dynamic posts grid, and native Form Builder integration.",
@@ -14,9 +14,30 @@
     "slug": "jyavani-builder"
   },
   "requires": {
+    "jyavani": ">=2.3.74",
     "php": ">=8.1",
-    "extensions": ["pdo", "json"]
+    "extensions": ["pdo", "json", "mbstring", "dom"]
   },
+  "permissions": [
+    {
+      "key": "plugin.jyavani-builder.workspace.access",
+      "label": "Access Jy Builder",
+      "supports_scope": false,
+      "default_roles": ["author", "editor", "admin"]
+    },
+    {
+      "key": "plugin.jyavani-builder.content.manage-any",
+      "label": "Manage Any Jy Builder Content",
+      "supports_scope": false,
+      "default_roles": ["admin"]
+    },
+    {
+      "key": "plugin.jyavani-builder.site-settings.manage",
+      "label": "Manage Jy Builder Site Settings",
+      "supports_scope": false,
+      "default_roles": ["admin"]
+    }
+  ],
   "static": {
     "copy": [
       {"from": "assets/builder.css", "to": "static/plugins/jyavani-builder/builder.css"},
@@ -33,6 +54,7 @@
         "route": "admin/tools/jyavani-builder",
         "file": "admin/index.php",
         "title": "Jy Builder",
+        "permission": "plugin.jyavani-builder.workspace.access",
         "roles": ["author", "editor", "admin"]
       }
     ],

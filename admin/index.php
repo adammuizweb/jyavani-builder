@@ -11,10 +11,13 @@ if (!($pdo instanceof PDO)) { echo '<p>Database not available.</p>'; return; }
 
 jvb_ensure_schema($pdo);
 
-$uid = function_exists('current_user_id') ? (int)current_user_id() : 0;
+[$uid] = adiwira_require_permission($pdo, 'plugin.jyavani-builder.workspace.access', false);
 $role = function_exists('current_user_role') ? current_user_role($pdo) : null;
-if ($uid <= 0) { echo '<div class="jvba-empty">Please log in.</div>'; return; }
-if (!in_array($role, ['author', 'editor', 'admin'], true)) { echo '<div class="jvba-empty">Author, editor or admin role required.</div>'; return; }
+$canManageAny = user_can($pdo, $uid, 'plugin.jyavani-builder.content.manage-any');
+$canManageSite = user_can($pdo, $uid, 'plugin.jyavani-builder.site-settings.manage');
+$canCreate = user_can($pdo, $uid, 'core.pages.create') || user_can($pdo, $uid, 'core.posts.create');
+$siteOwnerActor = function_exists('authorization_actor') ? authorization_actor($pdo, $uid) : null;
+$isSiteOwner = $siteOwnerActor !== null && $siteOwnerActor['is_site_owner'] === true;
 
 $csrf = function_exists('csrf_token') ? csrf_token() : '';
 
@@ -23,7 +26,7 @@ $homeMsg = '';
 $homeForced = null; // same-request override: settings_get() is statically cached
 $act = (string)($_POST['jvb_action'] ?? '');
 if ($act !== '') {
-    $okCsrf = function_exists('csrf_check') ? csrf_check((string)($_POST['csrf_token'] ?? '')) : true;
+    $okCsrf = function_exists('csrf_check') && csrf_check((string)($_POST['csrf_token'] ?? ''));
     if (!$okCsrf) {
         $homeMsg = 'CSRF check failed.';
     } elseif ($act === 'duplicate') {
@@ -34,9 +37,18 @@ if ($act !== '') {
         $src = $st->fetch(PDO::FETCH_ASSOC);
         if (!is_array($src)) {
             $homeMsg = 'Source post not found.';
-        } elseif ($role !== 'admin' && (int)($src['created_by'] ?? 0) !== $uid) {
+        } elseif (!$canManageAny && (int)($src['created_by'] ?? 0) !== $uid) {
             $homeMsg = 'Access denied: you can only duplicate your own posts.';
+        } elseif (!jvb_user_can_content_action($pdo, $uid, $src, 'read')) {
+            $homeMsg = 'Core content permission denied.';
+        } elseif (!jvb_user_can_content_action($pdo, $uid, ['type' => $src['type'], 'created_by' => $uid], 'create')) {
+            $homeMsg = 'Core content creation permission denied.';
         } else {
+            $sourceLayout = jvb_get_layout($pdo, $pid, 'draft') ?? jvb_get_layout($pdo, $pid, 'published');
+            if ($sourceLayout !== null && jvb_layout_has_restricted_elements($sourceLayout)
+                && !jvb_user_can_restricted_elements($pdo, $uid, ['type' => $src['type'], 'created_by' => $uid])) {
+                $homeMsg = 'Restricted builder element.';
+            } else {
             $newTitle = $src['title'] . ' (Copy)';
             $baseSlug = strtolower(trim(preg_replace('/[^a-z0-9]+/i', '-', $src['slug'] . '-copy'), '-')) ?: 'copy';
             $slug = $baseSlug; $si = 1;
@@ -53,10 +65,10 @@ if ($act !== '') {
                            SELECT ?, status, draft_json, published_json, published_at FROM jvb_layouts WHERE post_id = ?')
                 ->execute([$newId, $pid]);
             $homeMsg = 'Duplicated as "' . $newTitle . '" (draft).';
+            }
         }
-    } elseif ($role !== 'admin') {
-        // Homepage designation is a site-wide setting — admin only
-        $homeMsg = 'Only admins can change the homepage designation.';
+    } elseif (!$canManageSite) {
+        $homeMsg = 'You cannot change the homepage designation.';
     } elseif (function_exists('settings_set')) {
         if ($act === 'set_home') {
             $pid = (int)($_POST['post_id'] ?? 0);
@@ -79,7 +91,8 @@ $view = (string)($_GET['view'] ?? 'list');
 
 if ($view === 'builder') {
     $postId = (int)($_GET['post_id'] ?? 0);
-    $post = ['id' => 0, 'title' => 'New', 'slug' => '', 'type' => 'theme', 'status' => 'draft'];
+    $newType = $isSiteOwner ? 'theme' : (user_can($pdo, $uid, 'core.pages.create') ? 'page' : 'article');
+    $post = ['id' => 0, 'title' => 'New', 'slug' => '', 'type' => $newType, 'status' => 'draft'];
     if ($postId > 0) {
         $st = $pdo->prepare('SELECT id, title, slug, type, status, created_by FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
         $st->execute([$postId]);
@@ -90,9 +103,14 @@ if ($view === 'builder') {
             return;
         }
         // Ownership check (CMS core rule: author/editor only own posts)
-        if ($role !== 'admin' && (int)($fetched['created_by'] ?? 0) !== $uid) {
+        if (!$canManageAny && (int)($fetched['created_by'] ?? 0) !== $uid) {
             jvb_admin_css();
             echo '<div class="jvba"><div class="jvba-empty">Access denied: you can only edit your own posts. <a href="' . jvb_url() . '">Back to pages</a></div></div>';
+            return;
+        }
+        if (!jvb_user_can_content_action($pdo, $uid, $fetched, 'update')) {
+            jvb_admin_css();
+            echo '<div class="jvba"><div class="jvba-empty">Core content permission denied. <a href="' . jvb_url() . '">Back to pages</a></div></div>';
             return;
         }
         $post = $fetched;
@@ -121,12 +139,12 @@ $typeFilter = in_array($_GET['type'] ?? '', ['page', 'article'], true) ? $_GET['
 $where = ["p.is_deleted = 0", "p.type IN ('page','article','theme')", "p.status != 'private'"];
 $args = [];
 // CMS core rule: author/editor only see their own posts
-if ($role !== 'admin') { $where[] = 'p.created_by = ?'; $args[] = $uid; }
+if (!$canManageAny) { $where[] = 'p.created_by = ?'; $args[] = $uid; }
 if ($typeFilter !== '') { $where[] = 'p.type = ?'; $args[] = $typeFilter; }
 if ($q !== '') { $where[] = '(p.title LIKE ? OR p.slug LIKE ?)'; $args[] = '%' . $q . '%'; $args[] = '%' . $q . '%'; }
 
 $sql = "
-    SELECT p.id, p.title, p.slug, p.type, p.status, p.updated_at,
+    SELECT p.id, p.title, p.slug, p.type, p.status, p.created_by, p.updated_at,
            l.status AS jvb_status, l.published_at AS jvb_published_at,
            (l.draft_json IS NOT NULL) AS jvb_has_draft
     FROM `posts` p
@@ -138,6 +156,7 @@ $sql = "
 $st = $pdo->prepare($sql);
 $st->execute($args);
 $posts = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+$posts = array_values(array_filter($posts, static fn(array $post): bool => jvb_user_can_content_action($pdo, $uid, $post, 'read')));
 
 $builderCount = 0;
 foreach ($posts as $p) { if ($p['jvb_status'] !== null) $builderCount++; }
@@ -148,9 +167,9 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
   <div class="jvba-head">
     <h1>Jy Builder</h1>
     <div class="jvba-actions">
-      <a class="jvba-btn primary" href="<?= jvb_url(['view' => 'builder']) ?>"><?= svg_ico('plus', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> New</a>
+      <?php if ($canCreate || $isSiteOwner): ?><a class="jvba-btn primary" href="<?= jvb_url(['view' => 'builder']) ?>"><?= svg_ico('plus', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> New</a><?php endif; ?>
       <a class="jvba-btn" href="<?= jvb_url(['view' => 'templates']) ?>">Templates</a>
-      <?php if ($role === 'admin'): ?>
+      <?php if ($canManageSite): ?>
       <a class="jvba-btn" href="<?= jvb_url(['view' => 'tokens']) ?>">Design Tokens</a>
       <?php endif; ?>
     </div>
@@ -206,7 +225,7 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
               <input type="hidden" name="jvb_action" value="duplicate">
               <button class="jvba-btn sm" type="submit" title="Duplicate this post and its builder layout (as draft)"><?= svg_ico('copy', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?></button>
             </form>
-            <?php if ($role === 'admin'): ?>
+            <?php if ($canManageSite): ?>
             <form method="post" style="display:inline">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
               <input type="hidden" name="post_id" value="<?= $pid ?>">

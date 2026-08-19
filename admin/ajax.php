@@ -17,11 +17,12 @@ if ($action === 'frame') {
         http_response_code(401);
         exit('Not logged in');
     }
-    $role = function_exists('current_user_role') ? current_user_role($pdo) : null;
-    if (!in_array($role, ['author', 'editor', 'admin'], true)) {
+    $frameUid = function_exists('current_user_id') ? (int)current_user_id() : 0;
+    if ($frameUid <= 0 || !function_exists('user_can') || !user_can($pdo, $frameUid, 'plugin.jyavani-builder.workspace.access')) {
         http_response_code(403);
         exit('Insufficient permissions');
     }
+    $manageAny = user_can($pdo, $frameUid, 'plugin.jyavani-builder.content.manage-any');
     $postId = (int)($_GET['post_id'] ?? 0);
     $device = in_array($_GET['device'] ?? '', ['desktop', 'tablet', 'mobile'], true) ? $_GET['device'] : 'desktop';
 
@@ -30,13 +31,17 @@ if ($action === 'frame') {
         $st = $pdo->prepare('SELECT id, title, slug, type, created_by FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
         $st->execute([$postId]);
         $post = $st->fetch(PDO::FETCH_ASSOC) ?: null;
-        // Ownership check (CMS core rule: author/editor only own posts)
-        if (is_array($post) && $role !== 'admin') {
-            $frameUid = function_exists('current_user_id') ? (int)current_user_id() : 0;
-            if ((int)($post['created_by'] ?? 0) !== $frameUid) {
-                http_response_code(403);
-                exit('Access denied: you can only edit your own posts');
-            }
+        if (!is_array($post)) {
+            http_response_code(404);
+            exit('Post not found');
+        }
+        if (!$manageAny && (int)($post['created_by'] ?? 0) !== $frameUid) {
+            http_response_code(403);
+            exit('Access denied: you can only edit your own posts');
+        }
+        if (!jvb_user_can_content_action($pdo, $frameUid, $post, 'update')) {
+            http_response_code(403);
+            exit('Core content permission denied');
         }
     }
     $layout = $postId > 0 ? (jvb_get_layout($pdo, $postId, 'draft') ?? jvb_empty_layout()) : jvb_empty_layout();
@@ -86,28 +91,32 @@ $in = jvb_input();
 $action = (string)($in['action'] ?? '');
 $uid = $me['uid'];
 $role = $me['role'] ?? 'editor';
+$manageAny = ($me['manage_any'] ?? false) === true;
 
-// Frame preview stash: parent posts layout, gets a key, then loads frame with it (avoids long URLs)
-if ($action === 'frame_stash') {
-    $layout = jvb_normalize_layout($in['layout'] ?? null);
-    $key = bin2hex(random_bytes(6));
-    if (!isset($_SESSION['jvb_frame']) || !is_array($_SESSION['jvb_frame'])) $_SESSION['jvb_frame'] = [];
-    $_SESSION['jvb_frame'][$key] = json_encode($layout);
-    jvb_json(['success' => true, 'key' => $key]);
-}
-
-// Post lookup helper — with ownership check (CMS core rule)
-$getPost = static function (int $postId) use ($pdo, $uid, $role): ?array {
+$getPost = static function (int $postId) use ($pdo, $uid, $manageAny): ?array {
     if ($postId <= 0) return null;
     $st = $pdo->prepare('SELECT id, title, slug, type, status, created_by FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
     $st->execute([$postId]);
     $r = $st->fetch(PDO::FETCH_ASSOC);
     if (!is_array($r)) return null;
-    if ($role !== 'admin' && (int)($r['created_by'] ?? 0) !== $uid) {
+    if (!$manageAny && (int)($r['created_by'] ?? 0) !== $uid) {
         jvb_json(['success' => false, 'message' => 'Access denied: you can only edit your own posts'], 403);
     }
+    jvb_require_content_action($pdo, $uid, $r, 'update');
     return $r;
 };
+
+// Frame preview stash: parent posts layout, gets a key, then loads frame with it (avoids long URLs)
+if ($action === 'frame_stash') {
+    $layout = jvb_normalize_layout($in['layout'] ?? null);
+    $postId = (int)($in['post_id'] ?? 0);
+    $post = $postId > 0 ? $getPost($postId) : ['type' => (string)($in['post_type'] ?? 'theme'), 'created_by' => $uid];
+    if (jvb_layout_has_restricted_elements($layout) && !jvb_user_can_restricted_elements($pdo, $uid, $post)) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
+    $key = bin2hex(random_bytes(6));
+    if (!isset($_SESSION['jvb_frame']) || !is_array($_SESSION['jvb_frame'])) $_SESSION['jvb_frame'] = [];
+    $_SESSION['jvb_frame'][$key] = json_encode($layout);
+    jvb_json(['success' => true, 'key' => $key]);
+}
 
 switch ($action) {
     case 'load': {
@@ -150,11 +159,14 @@ switch ($action) {
 
     case 'save_draft': {
         $postId = (int)($in['post_id'] ?? 0);
+        $layout = jvb_normalize_layout($in['layout'] ?? null);
         // Standalone mode: create post on first save
         if ($postId <= 0) {
             $postType = in_array($in['post_type'] ?? '', ['page', 'article', 'theme'], true) ? $in['post_type'] : 'theme';
             $title = trim((string)($in['title'] ?? ''));
             if ($title === '') $title = 'Untitled ' . ucfirst($postType);
+            jvb_require_content_action($pdo, $uid, ['type' => $postType, 'created_by' => $uid], 'create');
+            if (jvb_layout_has_restricted_elements($layout) && !jvb_user_can_restricted_elements($pdo, $uid, ['type' => $postType, 'created_by' => $uid])) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
             $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $title));
             $slug = trim($slug, '-') ?: 'untitled-' . bin2hex(random_bytes(3));
             $baseSlug = $slug; $si = 1;
@@ -170,7 +182,7 @@ switch ($action) {
         }
         $post = $getPost($postId);
         if ($post === null) jvb_json(['success' => false, 'message' => 'Post not found'], 404);
-        $layout = jvb_normalize_layout($in['layout'] ?? null);
+        if (jvb_layout_has_restricted_elements($layout) && !jvb_user_can_restricted_elements($pdo, $uid, $post)) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
         jvb_save_draft($pdo, (int)$post['id'], $layout, $uid);
         jvb_json(['success' => true, 'post_id' => (int)$post['id'], 'saved_at' => date('Y-m-d H:i:s')]);
     }
@@ -182,6 +194,11 @@ switch ($action) {
             $postType = in_array($in['post_type'] ?? '', ['page', 'article', 'theme'], true) ? $in['post_type'] : 'theme';
             $title = trim((string)($in['title'] ?? ''));
             if ($title === '') $title = 'Untitled ' . ucfirst($postType);
+            jvb_require_content_action($pdo, $uid, ['type' => $postType, 'created_by' => $uid], 'create');
+            jvb_require_content_action($pdo, $uid, ['type' => $postType, 'created_by' => $uid], 'publish');
+            if (!isset($in['layout'])) jvb_json(['success' => false, 'message' => 'Layout required'], 400);
+            $newLayout = jvb_normalize_layout($in['layout']);
+            if (jvb_layout_has_restricted_elements($newLayout) && !jvb_user_can_restricted_elements($pdo, $uid, ['type' => $postType, 'created_by' => $uid])) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
             $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $title));
             $slug = trim($slug, '-') ?: 'untitled-' . bin2hex(random_bytes(3));
             $baseSlug = $slug; $si = 1;
@@ -197,9 +214,17 @@ switch ($action) {
         }
         $post = $getPost($postId);
         if ($post === null) jvb_json(['success' => false, 'message' => 'Post not found'], 404);
+        jvb_require_content_action($pdo, $uid, $post, 'publish');
         // Publish current editor state if provided, else stored draft
         if (isset($in['layout'])) {
-            jvb_save_draft($pdo, (int)$post['id'], jvb_normalize_layout($in['layout']), $uid);
+            $layout = jvb_normalize_layout($in['layout']);
+            if (jvb_layout_has_restricted_elements($layout) && !jvb_user_can_restricted_elements($pdo, $uid, $post)) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
+            jvb_save_draft($pdo, (int)$post['id'], $layout, $uid);
+        }
+        $storedDraft = jvb_get_layout($pdo, (int)$post['id'], 'draft');
+        if ($storedDraft !== null && jvb_layout_has_restricted_elements($storedDraft)
+            && !jvb_user_can_restricted_elements($pdo, $uid, $post)) {
+            jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
         }
         if (!jvb_publish($pdo, (int)$post['id'], $uid)) {
             jvb_json(['success' => false, 'message' => 'Nothing to publish (empty draft)'], 400);
@@ -231,12 +256,21 @@ switch ($action) {
             if ($t !== '') { $sets[] = 'title = ?'; $vals[] = $t; }
         }
         if (isset($in['type']) && in_array($in['type'], ['page', 'article', 'theme'], true)) {
+            $targetPost = ['type' => $in['type'], 'created_by' => (int)$post['created_by']];
+            jvb_require_content_action($pdo, $uid, $targetPost, 'create');
+            $storedLayout = jvb_get_layout($pdo, (int)$post['id'], 'draft') ?? jvb_get_layout($pdo, (int)$post['id'], 'published');
+            if ($storedLayout !== null && jvb_layout_has_restricted_elements($storedLayout)
+                && !jvb_user_can_restricted_elements($pdo, $uid, $targetPost)) {
+                jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
+            }
             $sets[] = 'type = ?'; $vals[] = $in['type'];
         }
         if (isset($in['status']) && in_array($in['status'], ['draft', 'published', 'private'], true)) {
+            if ($in['status'] !== 'draft') jvb_require_content_action($pdo, $uid, $post, 'publish');
             $sets[] = 'status = ?'; $vals[] = $in['status'];
         }
-        if (isset($in['created_by']) && $role === 'admin') {
+        if (isset($in['created_by']) && $manageAny) {
+            jvb_require_content_action($pdo, $uid, $post, 'change_owner');
             $cb = (int)$in['created_by'];
             if ($cb > 0) { $sets[] = 'created_by = ?'; $vals[] = $cb; }
         }
@@ -249,6 +283,7 @@ switch ($action) {
     case 'unpublish': {
         $post = $getPost((int)($in['post_id'] ?? 0));
         if ($post === null) jvb_json(['success' => false, 'message' => 'Post not found'], 404);
+        jvb_require_content_action($pdo, $uid, $post, 'publish');
         jvb_unpublish($pdo, (int)$post['id']);
         jvb_json(['success' => true]);
     }
@@ -284,7 +319,19 @@ switch ($action) {
     }
 
     case 'restore_revision': {
-        $postId = jvb_restore_revision($pdo, (int)($in['revision_id'] ?? 0), $uid);
+        $revisionId = (int)($in['revision_id'] ?? 0);
+        $revisionStmt = $pdo->prepare('SELECT post_id FROM jvb_revisions WHERE id = ? LIMIT 1');
+        $revisionStmt->execute([$revisionId]);
+        $revisionPostId = (int)$revisionStmt->fetchColumn();
+        if ($revisionPostId <= 0 || $getPost($revisionPostId) === null) jvb_json(['success' => false, 'message' => 'Revision not found'], 404);
+        $revisionLayoutStmt = $pdo->prepare('SELECT layout_json FROM jvb_revisions WHERE id = ? LIMIT 1');
+        $revisionLayoutStmt->execute([$revisionId]);
+        $revisionLayout = jvb_normalize_layout((string)$revisionLayoutStmt->fetchColumn());
+        $revisionPost = $getPost($revisionPostId);
+        if (jvb_layout_has_restricted_elements($revisionLayout) && !jvb_user_can_restricted_elements($pdo, $uid, $revisionPost)) {
+            jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
+        }
+        $postId = jvb_restore_revision($pdo, $revisionId, $uid);
         if ($postId === null) jvb_json(['success' => false, 'message' => 'Revision not found'], 404);
         $layout = jvb_get_layout($pdo, $postId, 'draft') ?? jvb_empty_layout();
         jvb_json(['success' => true, 'layout' => $layout]);
@@ -293,6 +340,7 @@ switch ($action) {
     case 'render': {
         // Server-render an arbitrary layout (used for canvas refresh & template preview)
         $layout = jvb_normalize_layout($in['layout'] ?? null);
+        if (jvb_layout_has_restricted_elements($layout) && !jvb_user_can_restricted_elements($pdo, $uid)) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
         $html = jvb_render_layout($pdo, $layout, [], ['canvas' => true]);
         jvb_json(['success' => true, 'html' => $html]);
     }
@@ -301,7 +349,7 @@ switch ($action) {
         $types = jvb_element_types();
         $out = [];
         foreach ($types as $typeKey => $def) {
-            if ($me['role'] !== 'admin' && !empty($def['admin'])) continue;
+            if (!empty($def['admin']) && !jvb_user_can_restricted_elements($pdo, $uid)) continue;
             $def['type'] = $typeKey;
             $out[] = $def;
         }
@@ -336,7 +384,8 @@ switch ($action) {
     }
 
     case 'tokens_save': {
-        if ($me['role'] !== 'admin') jvb_json(['success' => false, 'message' => 'Admin only'], 403);
+        $canManageSite = user_can($pdo, $uid, 'plugin.jyavani-builder.site-settings.manage');
+        if (!$canManageSite) jvb_json(['success' => false, 'message' => 'Access denied'], 403);
         $tokens = $in['tokens'] ?? null;
         if (!is_array($tokens)) jvb_json(['success' => false, 'message' => 'Invalid tokens'], 400);
         jvb_save_tokens($pdo, $tokens);
@@ -350,11 +399,13 @@ switch ($action) {
     case 'template_get': {
         $tpl = jvb_get_template($pdo, (int)($in['template_id'] ?? 0));
         if ($tpl === null) jvb_json(['success' => false, 'message' => 'Template not found'], 404);
+        $templateLayout = jvb_normalize_layout((string)$tpl['layout_json']);
+        if (jvb_layout_has_restricted_elements($templateLayout) && !jvb_user_can_restricted_elements($pdo, $uid)) jvb_json(['success' => false, 'message' => 'Template not found'], 404);
         jvb_json(['success' => true, 'template' => [
             'id' => (int)$tpl['id'],
             'title' => $tpl['title'],
             'type' => $tpl['type'],
-            'layout' => json_decode((string)$tpl['layout_json'], true),
+            'layout' => $templateLayout,
         ]]);
     }
 
@@ -363,12 +414,23 @@ switch ($action) {
         $type = in_array($in['type'] ?? '', ['section', 'page'], true) ? $in['type'] : 'section';
         $layout = $in['layout'] ?? null;
         if ($title === '' || !is_array($layout)) jvb_json(['success' => false, 'message' => 'Title and layout required'], 400);
-        $id = jvb_save_template($pdo, $title, $type, $layout, $uid, isset($in['template_id']) ? (int)$in['template_id'] : null);
+        if (jvb_layout_has_restricted_elements(jvb_normalize_layout($layout)) && !jvb_user_can_restricted_elements($pdo, $uid)) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
+        $templateId = isset($in['template_id']) ? (int)$in['template_id'] : null;
+        if ($templateId !== null && $templateId > 0) {
+            $existing = jvb_get_template($pdo, $templateId);
+            if ($existing === null || !empty($existing['is_starter'])) jvb_json(['success' => false, 'message' => 'Template not found'], 404);
+            if (!$manageAny && (int)($existing['created_by'] ?? 0) !== $uid) jvb_json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+        $id = jvb_save_template($pdo, $title, $type, $layout, $uid, $templateId);
         jvb_json(['success' => true, 'template_id' => $id]);
     }
 
     case 'template_delete': {
-        jvb_delete_template($pdo, (int)($in['template_id'] ?? 0));
+        $templateId = (int)($in['template_id'] ?? 0);
+        $existing = jvb_get_template($pdo, $templateId);
+        if ($existing === null || !empty($existing['is_starter'])) jvb_json(['success' => false, 'message' => 'Template not found'], 404);
+        if (!$manageAny && (int)($existing['created_by'] ?? 0) !== $uid) jvb_json(['success' => false, 'message' => 'Access denied'], 403);
+        jvb_delete_template($pdo, $templateId);
         jvb_json(['success' => true]);
     }
 
