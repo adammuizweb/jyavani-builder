@@ -1,11 +1,11 @@
 <?php
-// /plugins/jyavani-builder/plugin.php — Jy Builder v3.2.3
+// /plugins/jyavani-builder/plugin.php — Jy Builder v3.2.4
 declare(strict_types=1);
 
 // Loaded on every request (admin + frontend) via plugin_load_active(). No context guard here —
 // guards belong in the admin page files.
 
-const JVB_VERSION = '3.2.3';
+const JVB_VERSION = '3.2.4';
 const JVB_LAYOUT_VERSION = 2;
 const JVB_SETTINGS_TOKENS_KEY = 'jvb_design_tokens';
 const JVB_DYNAMIC_ACCESS_MIGRATED_KEY = 'jvb_dynamic_access_migrated';
@@ -114,6 +114,33 @@ function jvb_layout_status(PDO $pdo, int $postId): string {
     $row = jvb_get_layout_row($pdo, $postId);
     if ($row === null) return 'none';
     return (string)($row['status'] ?? 'draft'); // draft | published
+}
+
+/** Read bounded layout metadata without loading or caching layout JSON documents. */
+function jvb_layout_statuses(PDO $pdo, array $postIds): array {
+    if (count($postIds) > 200) throw new InvalidArgumentException('Too many layout statuses requested.');
+    $ids = [];
+    foreach ($postIds as $postId) {
+        $value = is_int($postId) ? (string)$postId : $postId;
+        if (!is_string($value) || preg_match('/\A[1-9][0-9]{0,9}\z/D', $value) !== 1
+            || (strlen($value) === 10 && strcmp($value, '4294967295') > 0)) {
+            throw new InvalidArgumentException('Invalid layout post identity.');
+        }
+        $ids[(int)$value] = true;
+    }
+    if ($ids === []) return [];
+
+    $values = array_keys($ids);
+    $placeholders = implode(',', array_fill(0, count($values), '?'));
+    $stmt = $pdo->prepare("SELECT post_id, status FROM jvb_layouts WHERE post_id IN ({$placeholders})");
+    $stmt->execute($values);
+    $statuses = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $postId = (int)($row['post_id'] ?? 0);
+        $status = is_string($row['status'] ?? null) ? $row['status'] : '';
+        if ($postId > 0 && in_array($status, ['draft', 'published'], true)) $statuses[$postId] = $status;
+    }
+    return $statuses;
 }
 
 function jvb_save_draft(PDO $pdo, int $postId, array $layout, ?int $uid = null): void {

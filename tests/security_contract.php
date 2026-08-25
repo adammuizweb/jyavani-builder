@@ -18,8 +18,10 @@ try {
     $manifest = [];
     $failures[] = 'plugin.json parses';
 }
+$plugin = (string)file_get_contents($root . '/plugin.php');
 
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.74', 'manifest requires the default_roles/delegable Core release');
+$check(($manifest['version'] ?? null) === '3.2.4' && str_contains($plugin, "const JVB_VERSION = '3.2.4'"), 'manifest and runtime declare the 3.2.4 candidate');
 $permissionKeys = array_column($manifest['permissions'] ?? [], 'key');
 sort($permissionKeys);
 $expectedKeys = [
@@ -39,7 +41,6 @@ $pages = $manifest['admin']['pages'] ?? [];
 $check(count($pages) === 1, 'manifest declares one dashboard route');
 $check(($pages[0]['permission'] ?? null) === 'plugin.jyavani-builder.workspace.access', 'dashboard route uses workspace permission');
 
-$plugin = (string)file_get_contents($root . '/plugin.php');
 $index = (string)file_get_contents($root . '/admin/index.php');
 $ajax = (string)file_get_contents($root . '/admin/ajax.php');
 $builder = (string)file_get_contents($root . '/admin/builder.php');
@@ -52,6 +53,10 @@ $check(str_contains($plugin, "'core.' . \$resource . '.' . \$action"), 'content 
 $check(str_contains($plugin, 'core.pages.unfiltered_html') && str_contains($plugin, 'core.posts.unfiltered_html'), 'restricted elements use Core unfiltered HTML permissions');
 $check(str_contains($plugin, 'jvb_migrate_legacy_permissions'), 'legacy administrator action grants migrate once');
 $check(!str_contains($plugin, 'jvb_migrate_v1($pdo, $postId)'), 'public rendering performs no implicit layout migration');
+$check(str_contains($plugin, 'function jvb_layout_statuses(')
+    && str_contains($plugin, 'SELECT post_id, status FROM jvb_layouts')
+    && !str_contains($plugin, 'function jvb_layout_statuses(PDO $pdo, array $postIds): array {\n    $row = jvb_get_layout_row'),
+    'bulk layout status API reads bounded metadata without loading cached layout JSON');
 
 $check(str_contains($index, "adiwira_require_permission(\$pdo, 'plugin.jyavani-builder.workspace.access'"), 'dashboard repeats its workspace permission guard');
 $check(str_contains($index, "jvb_user_can_content_action(\$pdo, \$uid, \$src, 'read')"), 'duplicate verifies Core source read permission');
