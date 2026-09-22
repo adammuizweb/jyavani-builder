@@ -20,8 +20,8 @@ try {
 }
 $plugin = (string)file_get_contents($root . '/plugin.php');
 
-$check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.74', 'manifest requires the default_roles/delegable Core release');
-$check(($manifest['version'] ?? null) === '3.2.4' && str_contains($plugin, "const JVB_VERSION = '3.2.4'"), 'manifest and runtime declare the 3.2.4 candidate');
+$check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.148', 'manifest requires the shared content-list Core release');
+$check(($manifest['version'] ?? null) === '3.3.0' && str_contains($plugin, "const JVB_VERSION = '3.3.0'"), 'manifest and runtime declare the 3.3.0 candidate');
 $permissionKeys = array_column($manifest['permissions'] ?? [], 'key');
 sort($permissionKeys);
 $expectedKeys = [
@@ -63,6 +63,23 @@ $check(str_contains($index, "jvb_user_can_content_action(\$pdo, \$uid, \$src, 'r
 $check(str_contains($index, "['type' => \$src['type'], 'created_by' => \$uid], 'create'"), 'duplicate verifies Core target creation permission');
 $check(str_contains($index, "jvb_user_can_content_action(\$pdo, \$uid, \$fetched, 'update')"), 'builder shell verifies Core update permission');
 $check(str_contains($index, "array_filter(\$posts") && str_contains($index, "'read'"), 'workspace list filters rows through Core read permission');
+$check(str_contains($index, "'surface' => 'plugin.jyavani-builder'")
+    && str_contains($index, "'content_types' =>")
+    && str_contains($index, "apply_filters('post_list_status_expression'")
+    && str_contains($index, "apply_filters('post_list_search_condition'")
+    && str_contains($index, "apply_filters('post_list_join', '', \$whereSql, \$listContext)")
+    && str_contains($index, "apply_filters('post_list_select', '', \$whereSql, \$listContext)")
+    && str_contains($index, "apply_filters('post_list_rows', \$posts, \$listContext)")
+    && str_contains($index, "do_action('admin_content_list_filters', \$listContext, \$pdo)"),
+    'workspace list consumes the generic content-list extension surface');
+$check(substr_count($plugin, "(\$context['surface'] ?? '') === 'plugin.jyavani-builder'") === 2,
+    'Builder list filters skip the internal surface to avoid duplicate layout joins and selects');
+$check(str_contains($index, 'get_page_permalink($p)') && str_contains($index, 'get_post_permalink($p)'),
+    'workspace View links use locale-aware Core permalink helpers');
+$check(str_contains($index, '$listExtensionQuery')
+    && str_contains($index, "in_array(\$key, ['page', 'view', 'q', 'type'], true)")
+    && substr_count($index, 'array_merge($listExtensionQuery') === 2,
+    'workspace type toggles retain bounded scalar extension filters without plugin-specific coupling');
 $check(str_contains($builder, "'change_owner'") && str_contains($builder, '$canChangeOwner'), 'author selector requires both plugin elevation and Core change-owner permission');
 
 $check(str_contains($ajax, "!== 'POST'") && str_contains($ajax, 'jvb_csrf_ok()'), 'JSON mutations require POST and CSRF');

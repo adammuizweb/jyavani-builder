@@ -135,21 +135,47 @@ jvb_admin_css();
 
 $q = trim((string)($_GET['q'] ?? ''));
 $typeFilter = in_array($_GET['type'] ?? '', ['page', 'article'], true) ? $_GET['type'] : '';
+$listContext = [
+    'schema' => 1,
+    'surface' => 'plugin.jyavani-builder',
+    'type' => $typeFilter !== '' ? $typeFilter : 'mixed',
+    'content_types' => $typeFilter !== '' ? [$typeFilter] : ['page', 'article', 'theme'],
+    'actor_id' => $uid,
+    'page' => 'admin/tools/jyavani-builder',
+    'filter_form_id' => 'jvb-list-filter',
+    'search' => $q,
+];
 
-$where = ["p.is_deleted = 0", "p.type IN ('page','article','theme')", "p.status != 'private'"];
+$statusExpression = apply_filters('post_list_status_expression', 'p.status', $listContext);
+if (!is_string($statusExpression) || trim($statusExpression) === '' || str_contains($statusExpression, ';')) {
+    $statusExpression = 'p.status';
+}
+$searchCondition = apply_filters('post_list_search_condition', '(p.title LIKE :search OR p.slug LIKE :search)', $listContext);
+if (!is_string($searchCondition) || trim($searchCondition) === '' || str_contains($searchCondition, ';')) {
+    $searchCondition = '(p.title LIKE :search OR p.slug LIKE :search)';
+}
+
+$where = ["p.is_deleted = 0", "p.type IN ('page','article','theme')", "({$statusExpression}) != 'private'"];
 $args = [];
 // CMS core rule: author/editor only see their own posts
-if (!$canManageAny) { $where[] = 'p.created_by = ?'; $args[] = $uid; }
-if ($typeFilter !== '') { $where[] = 'p.type = ?'; $args[] = $typeFilter; }
-if ($q !== '') { $where[] = '(p.title LIKE ? OR p.slug LIKE ?)'; $args[] = '%' . $q . '%'; $args[] = '%' . $q . '%'; }
+if (!$canManageAny) { $where[] = 'p.created_by = :jvb_actor_id'; $args[':jvb_actor_id'] = $uid; }
+if ($typeFilter !== '') { $where[] = 'p.type = :jvb_type'; $args[':jvb_type'] = $typeFilter; }
+if ($q !== '') { $where[] = '(' . $searchCondition . ')'; $args[':search'] = '%' . $q . '%'; }
+
+$whereSql = implode(' AND ', $where);
+$listJoin = apply_filters('post_list_join', '', $whereSql, $listContext);
+if (!is_string($listJoin) || str_contains($listJoin, ';')) $listJoin = '';
+$listSelect = apply_filters('post_list_select', '', $whereSql, $listContext);
+if (!is_string($listSelect) || str_contains($listSelect, ';')) $listSelect = '';
 
 $sql = "
     SELECT p.id, p.title, p.slug, p.type, p.status, p.created_by, p.updated_at,
            l.status AS jvb_status, l.published_at AS jvb_published_at,
-           (l.draft_json IS NOT NULL) AS jvb_has_draft
+           (l.draft_json IS NOT NULL) AS jvb_has_draft{$listSelect}
     FROM `posts` p
     LEFT JOIN `jvb_layouts` l ON l.post_id = p.id
-    WHERE " . implode(' AND ', $where) . "
+    {$listJoin}
+    WHERE {$whereSql}
     ORDER BY (l.post_id IS NOT NULL) DESC, p.updated_at DESC
     LIMIT 200
 ";
@@ -157,6 +183,16 @@ $st = $pdo->prepare($sql);
 $st->execute($args);
 $posts = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
 $posts = array_values(array_filter($posts, static fn(array $post): bool => jvb_user_can_content_action($pdo, $uid, $post, 'read')));
+$filteredPosts = apply_filters('post_list_rows', $posts, $listContext);
+if (is_array($filteredPosts) && array_is_list($filteredPosts)) $posts = $filteredPosts;
+
+$listExtensionQuery = [];
+foreach ($_GET as $key => $value) {
+    if (!is_string($key) || preg_match('/\A[a-z][a-z0-9_-]{0,63}\z/', $key) !== 1
+        || in_array($key, ['page', 'view', 'q', 'type'], true) || !is_scalar($value)) continue;
+    $value = (string)$value;
+    if (strlen($value) <= 200 && preg_match('/[\x00-\x1F\x7F]/', $value) !== 1) $listExtensionQuery[$key] = $value;
+}
 
 $builderCount = 0;
 foreach ($posts as $p) { if ($p['jvb_status'] !== null) $builderCount++; }
@@ -176,16 +212,17 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
   </div>
 
   <div class="jvba-toolbar">
-    <form method="get" class="jvba-search">
+    <form method="get" class="jvba-search" id="jvb-list-filter">
       <input type="hidden" name="page" value="admin/tools/jyavani-builder">
       <input type="search" name="q" value="<?= htmlspecialchars($q, ENT_QUOTES) ?>" placeholder="Search pages…">
       <?php if ($typeFilter !== ''): ?><input type="hidden" name="type" value="<?= htmlspecialchars($typeFilter, ENT_QUOTES) ?>"><?php endif; ?>
+      <?php do_action('admin_content_list_filters', $listContext, $pdo); ?>
       <button class="jvba-btn sm" type="submit">Search</button>
       <?php if ($q !== '' || $typeFilter !== ''): ?><a class="jvba-btn sm" href="<?= jvb_url() ?>">Reset</a><?php endif; ?>
     </form>
     <div class="jvba-actions">
-      <a class="jvba-btn sm" href="<?= jvb_url(['type' => $typeFilter === 'page' ? null : 'page', 'q' => $q ?: null]) ?>">Pages</a>
-      <a class="jvba-btn sm" href="<?= jvb_url(['type' => $typeFilter === 'article' ? null : 'article', 'q' => $q ?: null]) ?>">Articles</a>
+      <a class="jvba-btn sm" href="<?= jvb_url(array_merge($listExtensionQuery, ['type' => $typeFilter === 'page' ? null : 'page', 'q' => $q ?: null])) ?>">Pages</a>
+      <a class="jvba-btn sm" href="<?= jvb_url(array_merge($listExtensionQuery, ['type' => $typeFilter === 'article' ? null : 'article', 'q' => $q ?: null])) ?>">Articles</a>
       <span class="jvba-hint"><?= count($posts) ?> posts · <?= $builderCount ?> with builder</span>
     </div>
   </div>
@@ -199,6 +236,11 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
       <tbody>
       <?php foreach ($posts as $p):
         $pid = (int)$p['id'];
+        $viewHref = $p['type'] === 'page' && function_exists('get_page_permalink')
+            ? get_page_permalink($p)
+            : (function_exists('get_post_permalink') ? get_post_permalink($p) : '/' . rawurlencode((string)$p['slug']) . '/');
+        $viewPath = parse_url($viewHref, PHP_URL_PATH);
+        if (!is_string($viewPath) || $viewPath === '') $viewPath = '/' . rawurlencode((string)$p['slug']) . '/';
         $jvbStatus = $p['jvb_status'] ?? 'none';
         $badgeCls = $jvbStatus === 'published' ? 'published' : ($jvbStatus === 'draft' ? 'draft' : 'none');
         $badgeLbl = $jvbStatus === 'published' ? 'Published' : ($jvbStatus === 'draft' ? 'Draft' : '—');
@@ -210,7 +252,7 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
         <tr>
           <td>
             <strong><?= htmlspecialchars($p['title'], ENT_QUOTES) ?></strong>
-            <span class="jvba-sub jvba-mono">/<?= htmlspecialchars($p['slug'], ENT_QUOTES) ?>/</span>
+            <span class="jvba-sub jvba-mono"><?= htmlspecialchars($viewPath, ENT_QUOTES) ?></span>
           </td>
           <td><?= htmlspecialchars($p['type'], ENT_QUOTES) ?></td>
           <td><span class="jvba-sub"><?= htmlspecialchars($p['status'], ENT_QUOTES) ?></span></td>
@@ -218,7 +260,7 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
           <td class="jvba-sub" style="white-space:nowrap"><?= htmlspecialchars(date('d M Y', strtotime((string)$p['updated_at'])), ENT_QUOTES) ?></td>
           <td style="white-space:nowrap">
             <a class="jvba-btn sm primary" href="<?= jvb_url(['view' => 'builder', 'post_id' => $pid]) ?>"><?= svg_ico('zap', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> Builder</a>
-            <a class="jvba-btn sm" href="/<?= htmlspecialchars($p['slug'], ENT_QUOTES) ?>/" target="_blank" rel="noopener">View</a>
+            <a class="jvba-btn sm" href="<?= htmlspecialchars($viewHref, ENT_QUOTES) ?>" target="_blank" rel="noopener">View</a>
             <form method="post" style="display:inline">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
               <input type="hidden" name="post_id" value="<?= $pid ?>">

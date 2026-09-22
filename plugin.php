@@ -1,11 +1,11 @@
 <?php
-// /plugins/jyavani-builder/plugin.php — Jy Builder v3.2.4
+// /plugins/jyavani-builder/plugin.php — Jy Builder v3.3.0
 declare(strict_types=1);
 
 // Loaded on every request (admin + frontend) via plugin_load_active(). No context guard here —
 // guards belong in the admin page files.
 
-const JVB_VERSION = '3.2.4';
+const JVB_VERSION = '3.3.0';
 const JVB_LAYOUT_VERSION = 2;
 const JVB_SETTINGS_TOKENS_KEY = 'jvb_design_tokens';
 const JVB_DYNAMIC_ACCESS_MIGRATED_KEY = 'jvb_dynamic_access_migrated';
@@ -844,24 +844,26 @@ add_action('editor_mode_after_areas', function (array $post, string $chosenMode)
 }, 10, 2);
 
 // Add jvb_status column to post/page list queries
-add_filter('post_list_select', function (string $select, string $where): string {
+add_filter('post_list_select', function (string $select, string $where, array $context = []): string {
+    if (($context['surface'] ?? '') === 'plugin.jyavani-builder') return $select;
     $pdo = $GLOBALS['pdo'] ?? null;
     if (!($pdo instanceof PDO)) return $select;
     $uid = function_exists('current_user_id') ? (int)current_user_id() : 0;
     if ($uid <= 0 || !function_exists('user_can') || !user_can($pdo, $uid, 'plugin.jyavani-builder.workspace.access')) return $select;
     try { $pdo->query('SELECT 1 FROM jvb_layouts LIMIT 1'); } catch (Throwable $e) { return $select; }
     return $select . ', jvb.status AS jvb_status';
-}, 10, 2);
+}, 10);
 
 // Add LEFT JOIN jvb_layouts to post/page list queries
-add_filter('post_list_join', function (string $join, string $where): string {
+add_filter('post_list_join', function (string $join, string $where, array $context = []): string {
+    if (($context['surface'] ?? '') === 'plugin.jyavani-builder') return $join;
     $pdo = $GLOBALS['pdo'] ?? null;
     if (!($pdo instanceof PDO)) return $join;
     $uid = function_exists('current_user_id') ? (int)current_user_id() : 0;
     if ($uid <= 0 || !function_exists('user_can') || !user_can($pdo, $uid, 'plugin.jyavani-builder.workspace.access')) return $join;
     try { $pdo->query('SELECT 1 FROM jvb_layouts LIMIT 1'); } catch (Throwable $e) { return $join; }
     return $join . ' LEFT JOIN jvb_layouts jvb ON jvb.post_id = p.id';
-}, 10, 2);
+}, 10);
 
 // Add BUILDER badge after post title in list pages
 add_filter('post_list_title_after', function (string $html, array $post): string {
