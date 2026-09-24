@@ -62,7 +62,7 @@ function jvb_starter_templates(): array {
                     ]],
                     [$w(33.34, 100, 100), [
                         $el('spacer', ['height' => ['d' => 28]]),
-                        $el('button', ['text' => 'Sign Up Free', 'url' => '#', 'color' => 'accent', 'align' => ['d' => 'right', 't' => 'left', 'm' => 'left']]),
+                        $el('button', ['text' => 'Create Account', 'url' => '#', 'color' => 'accent', 'align' => ['d' => 'right', 't' => 'left', 'm' => 'left']]),
                     ]],
                 ]
             ),
@@ -77,7 +77,7 @@ function jvb_starter_templates(): array {
                         $el('heading', ['text' => 'Simple pricing', 'tag' => 'h2', 'align' => ['d' => 'center'], 'typography' => ['d' => ['size' => 40, 'weight' => '800']]]),
                         $el('spacer', ['height' => ['d' => 24]]),
                     ]],
-                    [$w(33.33, 100, 100), [$el('pricing', ['plan' => 'Starter', 'price' => '0', 'period' => '/mo', 'features' => "1 website\nCommunity support\nBasic elements", 'btn_text' => 'Start Free'])]],
+                    [$w(33.33, 100, 100), [$el('pricing', ['plan' => 'Starter', 'price' => '0', 'period' => '/mo', 'features' => "1 website\nCommunity support\nBasic elements", 'btn_text' => 'Choose Starter'])]],
                     [$w(33.33, 100, 100), [$el('pricing', ['plan' => 'Pro', 'price' => '49', 'period' => '/mo', 'features' => "10 websites\nPriority support\nAll elements\nDesign tokens", 'btn_text' => 'Go Pro', 'highlight' => true, 'badge' => 'Popular'])]],
                     [$w(33.34, 100, 100), [$el('pricing', ['plan' => 'Enterprise', 'price' => '199', 'period' => '/mo', 'features' => "Unlimited websites\nDedicated support\nCustom development\nSLA", 'btn_text' => 'Contact Sales'])]],
                 ]

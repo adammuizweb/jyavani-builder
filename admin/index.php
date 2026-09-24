@@ -21,14 +21,13 @@ $isSiteOwner = $siteOwnerActor !== null && $siteOwnerActor['is_site_owner'] === 
 
 $csrf = function_exists('csrf_token') ? csrf_token() : '';
 
-// Homepage designation (POST, CSRF-checked, re-renders list — no redirect needed)
-$homeMsg = '';
-$homeForced = null; // same-request override: settings_get() is statically cached
+// Row actions (POST, CSRF-checked, re-renders list — no redirect needed)
+$actionMsg = '';
 $act = (string)($_POST['jvb_action'] ?? '');
 if ($act !== '') {
     $okCsrf = function_exists('csrf_check') && csrf_check((string)($_POST['csrf_token'] ?? ''));
     if (!$okCsrf) {
-        $homeMsg = 'CSRF check failed.';
+        $actionMsg = 'CSRF check failed.';
     } elseif ($act === 'duplicate') {
         // Duplicate post + its builder layout (own posts only for non-admins)
         $pid = (int)($_POST['post_id'] ?? 0);
@@ -36,18 +35,18 @@ if ($act !== '') {
         $st->execute([$pid]);
         $src = $st->fetch(PDO::FETCH_ASSOC);
         if (!is_array($src)) {
-            $homeMsg = 'Source post not found.';
+            $actionMsg = 'Source post not found.';
         } elseif (!$canManageAny && (int)($src['created_by'] ?? 0) !== $uid) {
-            $homeMsg = 'Access denied: you can only duplicate your own posts.';
+            $actionMsg = 'Access denied: you can only duplicate your own posts.';
         } elseif (!jvb_user_can_content_action($pdo, $uid, $src, 'read')) {
-            $homeMsg = 'Core content permission denied.';
+            $actionMsg = 'Core content permission denied.';
         } elseif (!jvb_user_can_content_action($pdo, $uid, ['type' => $src['type'], 'created_by' => $uid], 'create')) {
-            $homeMsg = 'Core content creation permission denied.';
+            $actionMsg = 'Core content creation permission denied.';
         } else {
             $sourceLayout = jvb_get_layout($pdo, $pid, 'draft') ?? jvb_get_layout($pdo, $pid, 'published');
             if ($sourceLayout !== null && jvb_layout_has_restricted_elements($sourceLayout)
                 && !jvb_user_can_restricted_elements($pdo, $uid, ['type' => $src['type'], 'created_by' => $uid])) {
-                $homeMsg = 'Restricted builder element.';
+                $actionMsg = 'Restricted builder element.';
             } else {
             $newTitle = $src['title'] . ' (Copy)';
             $baseSlug = strtolower(trim(preg_replace('/[^a-z0-9]+/i', '-', $src['slug'] . '-copy'), '-')) ?: 'copy';
@@ -64,25 +63,8 @@ if ($act !== '') {
             $pdo->prepare('INSERT INTO jvb_layouts (post_id, status, draft_json, published_json, published_at)
                            SELECT ?, status, draft_json, published_json, published_at FROM jvb_layouts WHERE post_id = ?')
                 ->execute([$newId, $pid]);
-            $homeMsg = 'Duplicated as "' . $newTitle . '" (draft).';
+            $actionMsg = 'Duplicated as "' . $newTitle . '" (draft).';
             }
-        }
-    } elseif (!$canManageSite) {
-        $homeMsg = 'You cannot change the homepage designation.';
-    } elseif (function_exists('settings_set')) {
-        if ($act === 'set_home') {
-            $pid = (int)($_POST['post_id'] ?? 0);
-            $st = $pdo->prepare("SELECT id FROM `posts` WHERE id = ? AND type IN ('page','article') AND is_deleted = 0 LIMIT 1");
-            $st->execute([$pid]);
-            if ($st->fetchColumn()) {
-                settings_set($pdo, 'jvb_home_post_id', (string)$pid, 1);
-                $homeForced = $pid;
-                $homeMsg = 'Homepage set to post #' . $pid . '. Publish its builder layout to make it live.';
-            }
-        } elseif ($act === 'unset_home') {
-            settings_set($pdo, 'jvb_home_post_id', '0', 1);
-            $homeForced = 0;
-            $homeMsg = 'Homepage designation cleared.';
         }
     }
 }
@@ -134,7 +116,11 @@ if ($view === 'templates') {
 jvb_admin_css();
 
 $q = trim((string)($_GET['q'] ?? ''));
-$typeFilter = in_array($_GET['type'] ?? '', ['page', 'article'], true) ? $_GET['type'] : '';
+$requestedListPage = is_scalar($_GET['p'] ?? null) ? (int)$_GET['p'] : 1;
+$listPage = max(1, $requestedListPage);
+$listPerPage = 15;
+$allowedTypeFilters = $isSiteOwner ? ['page', 'article', 'theme'] : ['page', 'article'];
+$typeFilter = in_array($_GET['type'] ?? '', $allowedTypeFilters, true) ? $_GET['type'] : '';
 $listContext = [
     'schema' => 1,
     'surface' => 'plugin.jyavani-builder',
@@ -189,17 +175,43 @@ if (is_array($filteredPosts) && array_is_list($filteredPosts)) $posts = $filtere
 $listExtensionQuery = [];
 foreach ($_GET as $key => $value) {
     if (!is_string($key) || preg_match('/\A[a-z][a-z0-9_-]{0,63}\z/', $key) !== 1
-        || in_array($key, ['page', 'view', 'q', 'type'], true) || !is_scalar($value)) continue;
+        || in_array($key, ['page', 'view', 'q', 'type', 'p'], true) || !is_scalar($value)) continue;
     $value = (string)$value;
     if (strlen($value) <= 200 && preg_match('/[\x00-\x1F\x7F]/', $value) !== 1) $listExtensionQuery[$key] = $value;
 }
 
 $builderCount = 0;
 foreach ($posts as $p) { if ($p['jvb_status'] !== null) $builderCount++; }
-$homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jvb_home_post_id($pdo);
+$listTotal = count($posts);
+$listPages = max(1, (int)ceil($listTotal / $listPerPage));
+$listPage = min($listPage, $listPages);
+$posts = array_slice($posts, ($listPage - 1) * $listPerPage, $listPerPage);
+$listQuery = array_merge($listExtensionQuery, [
+    'q' => $q !== '' ? $q : null,
+    'type' => $typeFilter !== '' ? $typeFilter : null,
+]);
+$buildPaginationItems = static function (int $current, int $total, int $maxVisible = 9): array {
+    if ($total <= $maxVisible) return range(1, $total);
+
+    $items = [1, 2];
+    $middleSlots = max(1, $maxVisible - 6);
+    $half = (int)floor($middleSlots / 2);
+    $start = max(3, $current - $half);
+    $end = min($total - 2, $current + $half);
+    if ($start === 3) $end = min($total - 2, $start + $middleSlots - 1);
+    if ($end === $total - 2) $start = max(3, $end - $middleSlots + 1);
+    if ($start > 3) $items[] = '...';
+    for ($pageNumber = $start; $pageNumber <= $end; $pageNumber++) $items[] = $pageNumber;
+    if ($end < $total - 2) $items[] = '...';
+    $items[] = $total - 1;
+    $items[] = $total;
+    return $items;
+};
+$listPagingItems = $buildPaginationItems($listPage, $listPages);
+$homePostId = jvb_home_post_id($pdo);
 ?>
 <div class="jvba">
-  <?php if ($homeMsg !== ''): ?><div class="jvba-card" style="margin-bottom:.75rem"><?= htmlspecialchars($homeMsg, ENT_QUOTES) ?></div><?php endif; ?>
+  <?php if ($actionMsg !== ''): ?><div class="jvba-card" style="margin-bottom:.75rem"><?= htmlspecialchars($actionMsg, ENT_QUOTES) ?></div><?php endif; ?>
   <div class="jvba-head">
     <h1>Jy Builder</h1>
     <div class="jvba-actions">
@@ -223,7 +235,8 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
     <div class="jvba-actions">
       <a class="jvba-btn sm" href="<?= jvb_url(array_merge($listExtensionQuery, ['type' => $typeFilter === 'page' ? null : 'page', 'q' => $q ?: null])) ?>">Pages</a>
       <a class="jvba-btn sm" href="<?= jvb_url(array_merge($listExtensionQuery, ['type' => $typeFilter === 'article' ? null : 'article', 'q' => $q ?: null])) ?>">Articles</a>
-      <span class="jvba-hint"><?= count($posts) ?> posts · <?= $builderCount ?> with builder</span>
+      <?php if ($isSiteOwner): ?><a class="jvba-btn sm" href="<?= jvb_url(array_merge($listExtensionQuery, ['type' => $typeFilter === 'theme' ? null : 'theme', 'q' => $q ?: null])) ?>">Theme Content</a><?php endif; ?>
+      <span class="jvba-hint"><?= $listTotal ?> posts · <?= $builderCount ?> with builder</span>
     </div>
   </div>
 
@@ -257,29 +270,21 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
           <td><?= htmlspecialchars($p['type'], ENT_QUOTES) ?></td>
           <td><span class="jvba-sub"><?= htmlspecialchars($p['status'], ENT_QUOTES) ?></span></td>
           <td><span class="jvba-badge <?= $badgeCls ?>"><?= $badgeLbl ?></span><?php if ($homePostId === $pid): ?> <span class="jvba-badge published" title="This post provides the homepage layout"><?= svg_ico('house', 'jvb-ic', ['style' => 'width:12px;height:12px']) ?> Home</span><?php endif; ?></td>
-          <td class="jvba-sub" style="white-space:nowrap"><?= htmlspecialchars(date('d M Y', strtotime((string)$p['updated_at'])), ENT_QUOTES) ?></td>
-          <td style="white-space:nowrap">
-            <a class="jvba-btn sm primary" href="<?= jvb_url(['view' => 'builder', 'post_id' => $pid]) ?>"><?= svg_ico('zap', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> Builder</a>
-            <a class="jvba-btn sm" href="<?= htmlspecialchars($viewHref, ENT_QUOTES) ?>" target="_blank" rel="noopener">View</a>
-            <form method="post" style="display:inline">
-              <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
-              <input type="hidden" name="post_id" value="<?= $pid ?>">
-              <input type="hidden" name="jvb_action" value="duplicate">
-              <button class="jvba-btn sm" type="submit" title="Duplicate this post and its builder layout (as draft)"><?= svg_ico('copy', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?></button>
-            </form>
-            <?php if ($canManageSite): ?>
-            <form method="post" style="display:inline">
-              <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
-              <input type="hidden" name="post_id" value="<?= $pid ?>">
-              <?php if ($homePostId === $pid): ?>
-                <input type="hidden" name="jvb_action" value="unset_home">
-                <button class="jvba-btn sm" type="submit" title="Remove homepage designation"><?= svg_ico('house', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?><?= svg_ico('x', 'jvb-ic', ['style' => 'width:11px;height:11px']) ?></button>
-              <?php else: ?>
-                <input type="hidden" name="jvb_action" value="set_home">
-                <button class="jvba-btn sm" type="submit" title="Use this post's builder layout as the homepage"><?= svg_ico('house', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> Set home</button>
-              <?php endif; ?>
-            </form>
-            <?php endif; ?>
+          <td class="jvba-updated"><span class="jvba-sub"><?= htmlspecialchars(app_display_date((string)$p['updated_at']), ENT_QUOTES) ?></span></td>
+          <td class="jvba-actions-cell">
+            <div class="jvba-overflow">
+              <button class="jvba-overflow-trigger" type="button" aria-label="Actions for <?= htmlspecialchars($p['title'], ENT_QUOTES) ?>" aria-haspopup="menu" aria-expanded="false" aria-controls="jvba-menu-<?= $pid ?>"><span aria-hidden="true">&#8230;</span></button>
+              <div class="jvba-overflow-menu" id="jvba-menu-<?= $pid ?>" role="menu" hidden>
+                <a role="menuitem" href="<?= jvb_url(['view' => 'builder', 'post_id' => $pid]) ?>"><?= svg_ico('zap', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> Builder</a>
+                <a role="menuitem" href="<?= htmlspecialchars($viewHref, ENT_QUOTES) ?>" target="_blank" rel="noopener"><?= svg_ico('external-link', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> View</a>
+                <form method="post">
+                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
+                  <input type="hidden" name="post_id" value="<?= $pid ?>">
+                  <input type="hidden" name="jvb_action" value="duplicate">
+                  <button type="submit" role="menuitem"><?= svg_ico('copy', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> Duplicate</button>
+                </form>
+              </div>
+            </div>
           </td>
         </tr>
       <?php endforeach; ?>
@@ -288,12 +293,85 @@ $homePostId = $homeForced !== null ? ($homeForced > 0 ? $homeForced : null) : jv
   </div>
   <?php endif; ?>
 
+  <?php if ($listPages > 1): ?>
+    <nav class="adam-pagination pagination-wrap" aria-label="Pagination">
+      <?php foreach ($listPagingItems as $item):
+        if ($item === '...') {
+            echo '<span class="dots">…</span> ';
+            continue;
+        }
+        $pageNumber = (int)$item;
+        $pageHref = jvb_url(array_merge($listQuery, ['p' => $pageNumber > 1 ? $pageNumber : null]));
+      ?>
+        <?php if ($pageNumber === $listPage): ?>
+          <strong aria-current="page"><?= $pageNumber ?></strong>
+        <?php else: ?>
+          <a href="<?= htmlspecialchars($pageHref, ENT_QUOTES) ?>"><?= $pageNumber ?></a>
+        <?php endif; ?>
+      <?php endforeach; ?>
+    </nav>
+  <?php endif; ?>
+
   <div class="jvba-card" style="margin-top:1rem">
     <span class="jvba-hint">
       <strong>Draft → Publish workflow:</strong> edits in the builder are autosaved as a draft and never touch the live page until you click <strong>Publish</strong>.
       Preview drafts any time with <span class="jvba-mono">?jvb_preview=1</span> on the page URL. Revisions are kept automatically on each publish (last <?= JVB_MAX_REVISIONS ?>).
-      <br><strong>Homepage:</strong> mark a post with <span class="jvba-mono">Set home</span> — its <em>published</em> builder layout replaces the theme's homepage slot (site header/sidebar/footer stay).
-      Without a designation, a published page with slug <span class="jvba-mono">home</span> is used automatically.
     </span>
   </div>
 </div>
+<script>
+(() => {
+  const triggers = Array.from(document.querySelectorAll('.jvba-overflow-trigger'));
+  let active = null;
+
+  const close = (restoreFocus = false) => {
+    if (!active) return;
+    const { trigger, menu, home } = active;
+    menu.hidden = true;
+    menu.classList.remove('is-open');
+    home.appendChild(menu);
+    trigger.setAttribute('aria-expanded', 'false');
+    active = null;
+    if (restoreFocus) trigger.focus();
+  };
+
+  const open = (trigger) => {
+    close(false);
+    const menu = document.getElementById(trigger.getAttribute('aria-controls'));
+    const home = trigger.closest('.jvba-overflow');
+    if (!menu || !home) return;
+    document.body.appendChild(menu);
+    menu.hidden = false;
+    menu.classList.add('is-open');
+    const rect = trigger.getBoundingClientRect();
+    const width = menu.offsetWidth;
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.right - width));
+    const below = rect.bottom + 6;
+    const top = below + menu.offsetHeight <= window.innerHeight - 8
+      ? below
+      : Math.max(8, rect.top - menu.offsetHeight - 6);
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+    trigger.setAttribute('aria-expanded', 'true');
+    active = { trigger, menu, home };
+    menu.querySelector('[role="menuitem"]')?.focus();
+  };
+
+  triggers.forEach((trigger) => trigger.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (active?.trigger === trigger) close(true);
+    else open(trigger);
+  }));
+  document.addEventListener('click', (event) => {
+    if (active && !active.menu.contains(event.target) && event.target !== active.trigger) close(false);
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && active) {
+      event.preventDefault();
+      close(true);
+    }
+  });
+  window.addEventListener('resize', () => close(false));
+  window.addEventListener('scroll', () => close(false), true);
+})();
+</script>

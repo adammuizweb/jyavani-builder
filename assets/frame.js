@@ -11,8 +11,13 @@
 
   function post(msg) {
     msg.t = msg.t || '';
-    parent.postMessage(Object.assign({ source: 'jvb-frame' }, msg), '*');
+    parent.postMessage(Object.assign({ source: 'jvb-frame' }, msg), window.location.origin);
   }
+
+  document.body.classList.add('jvb-frame', 'jvb-frame--' + (window.JVB_FRAME.device || 'desktop'));
+  Array.prototype.forEach.call(document.body.children, function (element) {
+    if (element.id !== 'site-main' && element.tagName !== 'SCRIPT') element.inert = true;
+  });
 
   function kindOf(node) {
     return node.getAttribute('data-jvb-kind') || 'element';
@@ -374,6 +379,7 @@
 
   // ---------- Parent commands ----------
   window.addEventListener('message', function (e) {
+    if (e.origin !== window.location.origin || e.source !== window.parent) return;
     var msg = e.data;
     if (!msg || msg.source !== 'jvb-parent') return;
     if (msg.t === 'highlight') {

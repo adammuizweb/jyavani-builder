@@ -1,11 +1,11 @@
 <?php
-// /plugins/jyavani-builder/plugin.php — Jy Builder v3.3.0
+// /plugins/jyavani-builder/plugin.php — Jy Builder v3.3.3
 declare(strict_types=1);
 
 // Loaded on every request (admin + frontend) via plugin_load_active(). No context guard here —
 // guards belong in the admin page files.
 
-const JVB_VERSION = '3.3.0';
+const JVB_VERSION = '3.3.3';
 const JVB_LAYOUT_VERSION = 2;
 const JVB_SETTINGS_TOKENS_KEY = 'jvb_design_tokens';
 const JVB_DYNAMIC_ACCESS_MIGRATED_KEY = 'jvb_dynamic_access_migrated';

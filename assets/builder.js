@@ -230,7 +230,7 @@
 
   function framePost(msg) {
     var f = $('#jvbFrame');
-    if (f && f.contentWindow) f.contentWindow.postMessage(Object.assign({ source: 'jvb-parent' }, msg), '*');
+    if (f && f.contentWindow) f.contentWindow.postMessage(Object.assign({ source: 'jvb-parent' }, msg), window.location.origin);
   }
 
   // ───────────────────────── Mutations ─────────────────────────
@@ -2022,6 +2022,8 @@
 
   // ───────────────────────── Frame messages ─────────────────────────
   function onMessage(e) {
+    var frame = $('#jvbFrame');
+    if (e.origin !== window.location.origin || !frame || e.source !== frame.contentWindow) return;
     var msg = e.data;
     if (!msg || msg.source !== 'jvb-frame') return;
     switch (msg.t) {

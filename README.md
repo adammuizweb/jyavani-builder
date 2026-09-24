@@ -2,13 +2,14 @@
 
 Visual drag-and-drop builder for [Jyavani CMS](https://github.com/adammuizweb/jyavani). Works with articles, pages, and themes.
 
-![Version](https://img.shields.io/badge/version-3.3.0-blue)
+![Version](https://img.shields.io/badge/version-3.3.3-blue)
 ![PHP](https://img.shields.io/badge/PHP-%3E%3D8.1-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## Features
 
 - **WYSIWYG iframe canvas** with inline text editing
+- **Public-shell preview** with the active theme header and footer shown muted and noninteractive
 - **Section > Row > Column > Element** hierarchy (Divi-style)
 - **20 element types**: heading, richtext, image, button, icon, spacer, divider, video, accordion, tabs, counter, countdown, gallery, testimonial, pricing, iconbox, posts grid, form, HTML, shortcode
 - **Drag-and-drop** palette with pointer-based cross-iframe DnD

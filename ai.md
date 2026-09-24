@@ -692,7 +692,7 @@ A typical landing page follows this section order:
                 {
                   "id": "e_hero_btn", "type": "button",
                   "settings": {
-                    "text": "Get Started Free",
+                    "text": "Get Started",
                     "url": "#",
                     "size": "lg",
                     "color": "accent",
@@ -816,7 +816,7 @@ A typical landing page follows this section order:
                 {
                   "id": "e_cta_btn", "type": "button",
                   "settings": {
-                    "text": "Sign Up Free",
+                    "text": "Create Account",
                     "url": "#",
                     "color": "accent",
                     "align": { "d": "right", "t": "left", "m": "left" }

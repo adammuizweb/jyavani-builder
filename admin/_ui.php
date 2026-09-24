@@ -35,7 +35,7 @@ function jvb_admin_css(): void {
 .jvba-flash.err { background: color-mix(in srgb, var(--adam-danger) 14%, transparent); border: 1px solid var(--adam-danger); }
 .jvba-table-wrap { overflow-x: auto; border: 1px solid var(--adam-border); border-radius: 12px; background: var(--adam-card); }
 .jvba-table { width: 100%; border-collapse: collapse; font-size: .87rem; }
-.jvba-table th, .jvba-table td { padding: .65rem .9rem; text-align: left; border-bottom: 1px solid var(--adam-border); }
+.jvba-table th, .jvba-table td { padding: .65rem .9rem; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--adam-border); }
 .jvba-table th { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--adam-text-2); background: var(--adam-bg); }
 .jvba-table tbody tr:last-child td { border-bottom: 0; }
 .jvba-table tbody tr:hover { background: var(--adam-bg); }
@@ -49,6 +49,17 @@ function jvb_admin_css(): void {
 .jvba-search { display: flex; gap: .4rem; }
 .jvba-search input[type=search] { padding: .4rem .7rem; border-radius: 8px; border: 1px solid var(--adam-border); background: var(--adam-card); color: var(--adam-text); min-width: 220px; }
 .jvba-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.jvba-updated { white-space: nowrap; }
+.jvba-actions-cell { width: 1%; white-space: nowrap; text-align: right !important; }
+.jvba-overflow { display: inline-flex; }
+.jvba-overflow-trigger { display: inline-grid; place-items: center; width: 32px; height: 30px; padding: 0; border: 1px solid var(--adam-border); border-radius: 8px; background: var(--adam-card); color: var(--adam-text); cursor: pointer; font: 700 1.1rem/1 inherit; }
+.jvba-overflow-trigger:hover, .jvba-overflow-trigger:focus-visible, .jvba-overflow-trigger[aria-expanded="true"] { background: var(--adam-bg); border-color: var(--adam-accent); outline: none; }
+.jvba-overflow-menu { position: fixed; z-index: 10050; min-width: 155px; padding: .35rem; border: 1px solid var(--adam-border); border-radius: 10px; background: var(--adam-card); box-shadow: 0 12px 30px color-mix(in srgb, #000 22%, transparent); }
+.jvba-overflow-menu[hidden] { display: none; }
+.jvba-overflow-menu a, .jvba-overflow-menu button { display: flex; align-items: center; gap: .5rem; width: 100%; padding: .5rem .65rem; border: 0; border-radius: 7px; background: transparent; color: var(--adam-text); cursor: pointer; font: inherit; font-size: .82rem; text-align: left; }
+.jvba-overflow-menu a, .jvba-overflow-menu a:hover, .jvba-overflow-menu a:focus-visible { text-decoration: none !important; }
+.jvba-overflow-menu a:hover, .jvba-overflow-menu a:focus-visible, .jvba-overflow-menu button:hover, .jvba-overflow-menu button:focus-visible { background: var(--adam-bg); color: var(--adam-text); outline: none; }
+.jvba-overflow-menu form { margin: 0; }
 /* Tokens form */
 .jvba-tokens { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .9rem; }
 .jvba-field label { display: block; font-size: .78rem; font-weight: 600; margin-bottom: .3rem; }

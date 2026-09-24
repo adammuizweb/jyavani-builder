@@ -21,7 +21,7 @@ try {
 $plugin = (string)file_get_contents($root . '/plugin.php');
 
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.148', 'manifest requires the shared content-list Core release');
-$check(($manifest['version'] ?? null) === '3.3.0' && str_contains($plugin, "const JVB_VERSION = '3.3.0'"), 'manifest and runtime declare the 3.3.0 candidate');
+$check(($manifest['version'] ?? null) === '3.3.3' && str_contains($plugin, "const JVB_VERSION = '3.3.3'"), 'manifest and runtime declare the 3.3.3 candidate');
 $permissionKeys = array_column($manifest['permissions'] ?? [], 'key');
 sort($permissionKeys);
 $expectedKeys = [
@@ -42,9 +42,12 @@ $check(count($pages) === 1, 'manifest declares one dashboard route');
 $check(($pages[0]['permission'] ?? null) === 'plugin.jyavani-builder.workspace.access', 'dashboard route uses workspace permission');
 
 $index = (string)file_get_contents($root . '/admin/index.php');
+$adminUi = (string)file_get_contents($root . '/admin/_ui.php');
 $ajax = (string)file_get_contents($root . '/admin/ajax.php');
 $builder = (string)file_get_contents($root . '/admin/builder.php');
 $builderJs = (string)file_get_contents($root . '/assets/builder.js');
+$frameJs = (string)file_get_contents($root . '/assets/frame.js');
+$frameCss = (string)file_get_contents($root . '/assets/frame.css');
 
 $check(str_contains($plugin, "if (!function_exists('csrf_check')) return false"), 'CSRF validation fails closed');
 $check(str_contains($plugin, 'jvb_current_user_can_edit_post'), 'Core editor integration intersects workspace and Core content permission');
@@ -77,9 +80,39 @@ $check(substr_count($plugin, "(\$context['surface'] ?? '') === 'plugin.jyavani-b
 $check(str_contains($index, 'get_page_permalink($p)') && str_contains($index, 'get_post_permalink($p)'),
     'workspace View links use locale-aware Core permalink helpers');
 $check(str_contains($index, '$listExtensionQuery')
-    && str_contains($index, "in_array(\$key, ['page', 'view', 'q', 'type'], true)")
-    && substr_count($index, 'array_merge($listExtensionQuery') === 2,
-    'workspace type toggles retain bounded scalar extension filters without plugin-specific coupling');
+    && str_contains($index, "in_array(\$key, ['page', 'view', 'q', 'type', 'p'], true)")
+    && str_contains($index, "\$allowedTypeFilters = \$isSiteOwner ? ['page', 'article', 'theme'] : ['page', 'article']")
+    && substr_count($index, 'array_merge($listExtensionQuery') === 4
+    && str_contains($index, '>Theme Content</a>'),
+    'workspace type toggles include Site Owner Theme Content and retain bounded extension filters');
+$check(!str_contains($index, "value=\"set_home\"") && !str_contains($index, "value=\"unset_home\"")
+    && !str_contains($index, 'Set home'),
+    'workspace removes homepage designation actions');
+$check(str_contains($index, 'class="jvba-overflow-trigger"')
+    && str_contains($index, 'aria-haspopup="menu"')
+    && str_contains($index, 'role="menuitem"')
+    && str_contains($index, 'event.key === \'Escape\'')
+    && str_contains($index, 'menu.querySelector(\'[role="menuitem"]\')?.focus()')
+    && str_contains($index, 'document.body.appendChild(menu)')
+    && str_contains($index, "window.addEventListener('scroll', () => close(false), true)"),
+    'workspace exposes only an accessible clipping-safe overflow trigger for row actions');
+$check(str_contains($index, 'class="jvba-updated"')
+    && str_contains($index, 'app_display_date((string)$p[\'updated_at\'])')
+    && !str_contains($index, '<td class="jvba-sub"')
+    && str_contains($adminUi, 'vertical-align: middle')
+    && str_contains($adminUi, '.jvba-updated { white-space: nowrap; }')
+    && str_contains($adminUi, '.jvba-overflow-menu { position: fixed;'),
+    'Updated remains a table cell and uses the configured Core date format');
+$check(str_contains($index, '$listPerPage = 15')
+    && str_contains($index, '$listPages = max(1, (int)ceil($listTotal / $listPerPage))')
+    && str_contains($index, 'array_slice($posts, ($listPage - 1) * $listPerPage, $listPerPage)')
+    && str_contains($index, '$listPagingItems')
+    && str_contains($index, "['page', 'view', 'q', 'type', 'p']")
+    && str_contains($index, 'adam-pagination pagination-wrap')
+    && str_contains($index, 'aria-current="page"'),
+    'workspace list paginates fifteen authorized rows and preserves validated filters');
+$check(str_contains($adminUi, '.jvba-overflow-menu a:hover, .jvba-overflow-menu a:focus-visible { text-decoration: none !important; }'),
+    'workspace link actions suppress inherited dashboard underlines');
 $check(str_contains($builder, "'change_owner'") && str_contains($builder, '$canChangeOwner'), 'author selector requires both plugin elevation and Core change-owner permission');
 
 $check(str_contains($ajax, "!== 'POST'") && str_contains($ajax, 'jvb_csrf_ok()'), 'JSON mutations require POST and CSRF');
@@ -90,6 +123,36 @@ $check(str_contains($ajax, '$revisionLayout') && str_contains($ajax, 'jvb_layout
 $check(str_contains($ajax, '$templateLayout') && str_contains($ajax, 'jvb_layout_has_restricted_elements($templateLayout)'), 'template retrieval hides restricted layouts');
 $check(!preg_match("/===\\s*'admin'|!==\\s*'admin'/", $ajax), 'AJAX authorization has no direct legacy-admin bypass');
 $check(str_contains($builderJs, 'post_id: S.postId') && str_contains($builderJs, 'post_type:'), 'frame stash sends its content resource context');
+$check(str_contains($ajax, "require \$layoutPath")
+    && str_contains($ajax, "add_filter('layout_slot_html'")
+    && str_contains($ajax, "add_action('jy_head'")
+    && str_contains($ajax, "add_action('jy_footer'")
+    && !str_contains($ajax, '<!DOCTYPE html>')
+    && str_contains($ajax, 'Cache-Control: private, no-store')
+    && str_contains($ajax, 'X-Robots-Tag: noindex, nofollow'),
+    'canvas frame renders through the Core public layout with private preview headers');
+$check(str_contains($ajax, "'schema' => 1")
+    && str_contains($ajax, "'uid' => \$uid")
+    && str_contains($ajax, "'post_id' => \$postId")
+    && str_contains($ajax, "random_bytes(16)")
+    && str_contains($ajax, "time() - 300")
+    && str_contains($ajax, "count(\$_SESSION['jvb_frame']) >= 8"),
+    'frame stash is bounded, expiring, and bound to the authenticated user and post');
+$check(str_contains($frameCss, 'body > :not(#site-main):not(script)')
+    && str_contains($frameCss, 'pointer-events: none !important')
+    && str_contains($frameJs, 'element.inert = true')
+    && str_contains($ajax, 'opacity: .34 !important')
+    && str_contains($ajax, "document.addEventListener('DOMContentLoaded'")
+    && str_contains($ajax, "document.addEventListener('click'")
+    && str_contains($ajax, "document.addEventListener('submit'"),
+    'public header and footer remain visible but muted and noninteractive in the canvas');
+$check(str_contains($builderJs, "window.location.origin")
+    && str_contains($builderJs, 'e.source !== frame.contentWindow')
+    && str_contains($frameJs, "window.location.origin")
+    && str_contains($frameJs, 'e.source !== window.parent')
+    && !str_contains($frameJs, "msg), '*'")
+    && !str_contains($builderJs, "msg), '*'"),
+    'canvas messaging binds the exact same-origin parent and frame windows');
 
 if ($failures !== []) {
     fwrite(STDERR, 'Jy Builder security contract failed: ' . implode('; ', array_unique($failures)) . "\n");

@@ -1,9 +1,16 @@
 /* Jyavani Page Builder — frame.css (canvas chrome inside the iframe) */
 
-html, body { margin: 0; padding: 0; background: #f1f5f9; }
+html.jvb-frame-document body { margin: 0; padding: 0; background: #f1f5f9; }
 body.jvb-frame { min-height: 100vh; }
 .jvb-page { min-height: 100vh; background: #fff; }
 .jvb-preview-bar { display: none; }
+
+/* Keep the real public shell visible for context while making it noninteractive. */
+html.jvb-frame-document body > :not(#site-main):not(script) {
+  opacity: .38; filter: saturate(.3); pointer-events: none !important; user-select: none;
+  transition: opacity .15s, filter .15s;
+}
+html.jvb-frame-document body > :not(#site-main):not(script) * { pointer-events: none !important; }
 
 /* Disable real navigation/forms inside the canvas */
 .jvb-frame a, .jvb-frame button, .jvb-frame summary, .jvb-frame input,

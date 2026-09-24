@@ -28,7 +28,7 @@ if ($action === 'frame') {
 
     $post = null;
     if ($postId > 0) {
-        $st = $pdo->prepare('SELECT id, title, slug, type, created_by FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
+        $st = $pdo->prepare('SELECT id, title, slug, type, status, content, meta, thumbnail, created_by FROM `posts` WHERE id = ? AND is_deleted = 0 LIMIT 1');
         $st->execute([$postId]);
         $post = $st->fetch(PDO::FETCH_ASSOC) ?: null;
         if (!is_array($post)) {
@@ -46,35 +46,91 @@ if ($action === 'frame') {
     }
     $layout = $postId > 0 ? (jvb_get_layout($pdo, $postId, 'draft') ?? jvb_empty_layout()) : jvb_empty_layout();
     $layout = jvb_normalize_layout($layout);
-    // Unsaved preview payload (posted by parent before frame reload)
-    if (isset($_GET['preview_key'], $_SESSION['jvb_frame'][$_GET['preview_key']])) {
-        $layout = jvb_normalize_layout($_SESSION['jvb_frame'][$_GET['preview_key']]);
-        unset($_SESSION['jvb_frame'][$_GET['preview_key']]);
+    // Unsaved preview payload (posted by this user for this exact post).
+    if (isset($_GET['preview_key'])) {
+        $previewKey = is_scalar($_GET['preview_key']) ? (string)$_GET['preview_key'] : '';
+        $record = preg_match('/\A[a-f0-9]{32}\z/', $previewKey) === 1
+            ? ($_SESSION['jvb_frame'][$previewKey] ?? null)
+            : null;
+        unset($_SESSION['jvb_frame'][$previewKey]);
+        if (!is_array($record) || ($record['schema'] ?? null) !== 1
+            || (int)($record['uid'] ?? 0) !== $frameUid
+            || (int)($record['post_id'] ?? 0) !== $postId
+            || (int)($record['created_at'] ?? 0) < time() - 300) {
+            http_response_code(404);
+            exit('Preview expired');
+        }
+        $layout = jvb_normalize_layout($record['layout'] ?? null);
     }
 
     $html = jvb_render_layout($pdo, $layout, is_array($post) ? $post : [], ['canvas' => true]);
     $tokens = jvb_get_tokens($pdo);
     $tokensJson = json_encode($tokens, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     header('Content-Type: text/html; charset=utf-8');
-    ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="<?= jvb_asset_url('frontend.css') ?>">
-<link rel="stylesheet" href="<?= jvb_asset_url('frame.css') ?>">
+    header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('X-Robots-Tag: noindex, nofollow');
+
+    $postType = (string)($post['type'] ?? 'theme');
+    $context_for_layout = match ($postType) {
+        'article' => 'single.post',
+        'page' => 'single.page',
+        default => 'theme',
+    };
+    $layout_full_width = $postType === 'theme';
+    $enable_sidebar = in_array($postType, ['article', 'page'], true);
+    $meta = is_array($post['meta'] ?? null) ? $post['meta'] : json_decode((string)($post['meta'] ?? ''), true);
+    if (is_array($meta)) {
+        if (array_key_exists('layout_full_width', $meta)) $layout_full_width = (bool)$meta['layout_full_width'];
+        if (array_key_exists('enable_sidebar', $meta)) $enable_sidebar = (bool)$meta['enable_sidebar'];
+    }
+    $page_title = (string)($post['title'] ?? 'Jy Builder Preview');
+    $layout_data = ['jvb_frame_preview' => true];
+    $GLOBALS['robots_meta'] = 'noindex,nofollow';
+    $frameSlot = str_contains($context_for_layout, '.') ? $context_for_layout : 'main.' . $context_for_layout;
+    $frameIcons = json_encode(jvb_ui_icons_js(['settings', 'arrow-up', 'arrow-down', 'copy', 'bookmark', 'x', 'rows-3', 'plus', 'chevron-left', 'chevron-right']), JSON_UNESCAPED_SLASHES);
+
+    add_filter('layout_slot_html', static function (string $slotHtml, string $slot) use ($html, $frameSlot): string {
+        return $slot === $frameSlot ? $html : $slotHtml;
+    }, PHP_INT_MAX);
+    add_action('jy_head', static function () use ($device): void { ?>
+<link rel="stylesheet" href="<?= htmlspecialchars(jvb_asset_url('frontend.css'), ENT_QUOTES) ?>">
+<link rel="stylesheet" href="<?= htmlspecialchars(jvb_asset_url('frame.css'), ENT_QUOTES) ?>">
 <link rel="stylesheet" href="/static/vendor/swiper/swiper-bundle.min.css">
 <script src="/static/vendor/swiper/swiper-bundle.min.js"></script>
-</head>
-<body class="jvb-frame jvb-frame--<?= htmlspecialchars($device, ENT_QUOTES) ?>">
-<?= $html ?>
-<script>window.JVB_FRAME = { postId: <?= $postId ?>, device: '<?= htmlspecialchars($device, ENT_QUOTES) ?>', tokens: <?= $tokensJson ?>, icons: <?= json_encode(jvb_ui_icons_js(['settings', 'arrow-up', 'arrow-down', 'copy', 'bookmark', 'x', 'rows-3', 'plus', 'chevron-left', 'chevron-right']), JSON_UNESCAPED_SLASHES) ?> };</script>
-<script src="<?= jvb_asset_url('frontend.js') ?>"></script>
-<script src="<?= jvb_asset_url('frame.js') ?>"></script>
-</body>
-</html>
-<?php
+<style>
+html.jvb-frame-document body > :not(#site-main):not(script) {
+  opacity: .34 !important; filter: grayscale(.72) saturate(.24) !important;
+  pointer-events: none !important; user-select: none !important; cursor: default !important;
+}
+html.jvb-frame-document body > :not(#site-main):not(script) * {
+  pointer-events: none !important; cursor: default !important;
+}
+</style>
+<script>
+document.documentElement.classList.add('jvb-frame-document');
+document.addEventListener('DOMContentLoaded', function () {
+  Array.from(document.body.children).forEach(function (element) {
+    if (element.id !== 'site-main' && element.tagName !== 'SCRIPT') element.inert = true;
+  });
+});
+document.addEventListener('click', function (event) { if (!event.target.closest('#site-main')) { event.preventDefault(); event.stopImmediatePropagation(); } }, true);
+document.addEventListener('auxclick', function (event) { if (!event.target.closest('#site-main')) { event.preventDefault(); event.stopImmediatePropagation(); } }, true);
+document.addEventListener('submit', function (event) { event.preventDefault(); event.stopImmediatePropagation(); }, true);
+</script>
+<?php }, PHP_INT_MAX);
+    add_action('jy_footer', static function () use ($postId, $device, $tokensJson, $frameIcons): void { ?>
+<script>window.JVB_FRAME = { postId: <?= $postId ?>, device: <?= json_encode($device) ?>, tokens: <?= $tokensJson ?>, icons: <?= $frameIcons ?> };</script>
+<script src="<?= htmlspecialchars(jvb_asset_url('frontend.js'), ENT_QUOTES) ?>"></script>
+<script src="<?= htmlspecialchars(jvb_asset_url('frame.js'), ENT_QUOTES) ?>"></script>
+<?php }, PHP_INT_MAX);
+
+    $layoutPath = dirname(PLUGIN_PATH) . '/app/layout.php';
+    if (!is_file($layoutPath)) {
+        http_response_code(500);
+        exit('Public layout unavailable');
+    }
+    require $layoutPath;
     exit;
 }
 
@@ -112,9 +168,19 @@ if ($action === 'frame_stash') {
     $postId = (int)($in['post_id'] ?? 0);
     $post = $postId > 0 ? $getPost($postId) : ['type' => (string)($in['post_type'] ?? 'theme'), 'created_by' => $uid];
     if (jvb_layout_has_restricted_elements($layout) && !jvb_user_can_restricted_elements($pdo, $uid, $post)) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
-    $key = bin2hex(random_bytes(6));
+    $key = bin2hex(random_bytes(16));
     if (!isset($_SESSION['jvb_frame']) || !is_array($_SESSION['jvb_frame'])) $_SESSION['jvb_frame'] = [];
-    $_SESSION['jvb_frame'][$key] = json_encode($layout);
+    foreach ($_SESSION['jvb_frame'] as $storedKey => $record) {
+        if (!is_array($record) || (int)($record['created_at'] ?? 0) < time() - 300) unset($_SESSION['jvb_frame'][$storedKey]);
+    }
+    while (count($_SESSION['jvb_frame']) >= 8) array_shift($_SESSION['jvb_frame']);
+    $_SESSION['jvb_frame'][$key] = [
+        'schema' => 1,
+        'uid' => $uid,
+        'post_id' => $postId,
+        'created_at' => time(),
+        'layout' => json_encode($layout, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+    ];
     jvb_json(['success' => true, 'key' => $key]);
 }
 
