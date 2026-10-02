@@ -284,7 +284,7 @@
     if (!app.classList.contains('left-hidden')) {
       app.classList.add('left-hidden');
       var el = $('#jvbEdgeLeft');
-      if (el) el.textContent = '❯';
+      if (el) el.setAttribute('aria-expanded', 'false');
     }
   }
 
@@ -462,11 +462,18 @@
     if (!f) {
       panelTitle.textContent = 'Settings';
       panelTabs.hidden = true;
+      panelBody.removeAttribute('aria-labelledby');
       panelBody.innerHTML = '<p class="jvb-panel__hint">Select a section, column or element on the canvas to edit its settings.</p>';
       return;
     }
     panelTabs.hidden = false;
-    $$('#jvbPanelTabs button').forEach(function (b) { b.classList.toggle('is-active', b.dataset.ptab === S.panelTab); });
+    panelBody.setAttribute('aria-labelledby', 'jvbPtab' + S.panelTab.charAt(0).toUpperCase() + S.panelTab.slice(1));
+    $$('#jvbPanelTabs button').forEach(function (b) {
+      var active = b.dataset.ptab === S.panelTab;
+      b.classList.toggle('is-active', active);
+      b.setAttribute('aria-selected', active ? 'true' : 'false');
+      b.tabIndex = active ? 0 : -1;
+    });
 
     if (f.kind === 'element') renderElementPanel(f.node);
     else if (f.kind === 'col') renderColumnPanel(f.node);
@@ -1313,8 +1320,64 @@
   }
 
   // ───────────────────────── Overlay editors ─────────────────────────
+  function prepareModal(container, dialog, label, initialFocus) {
+    container._jvbReturnFocus = document.activeElement;
+    container._jvbIsolated = [];
+    Array.prototype.forEach.call(container.parentElement.children, function (element) {
+      if (element === container || ['SCRIPT', 'LINK', 'STYLE'].indexOf(element.tagName) !== -1) return;
+      container._jvbIsolated.push({ element: element, inert: element.inert, ariaHidden: element.getAttribute('aria-hidden') });
+      element.inert = true;
+      element.setAttribute('aria-hidden', 'true');
+    });
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-label', label);
+    setTimeout(function () {
+      if (initialFocus && initialFocus.isConnected && typeof initialFocus.focus === 'function') initialFocus.focus();
+    }, 0);
+  }
+
+  function releaseModal(container, remove) {
+    if (!container) return;
+    (container._jvbIsolated || []).forEach(function (item) {
+      item.element.inert = item.inert;
+      if (item.ariaHidden === null) item.element.removeAttribute('aria-hidden');
+      else item.element.setAttribute('aria-hidden', item.ariaHidden);
+    });
+    var returnFocus = container._jvbReturnFocus;
+    if (remove) container.remove();
+    else container.hidden = true;
+    if (returnFocus && returnFocus.isConnected && typeof returnFocus.focus === 'function') returnFocus.focus();
+  }
+
+  function activeModalDialog() {
+    var container = document.querySelector('.jvb-overlay, .jvb-modal, .jvb-post-overlay:not([hidden])');
+    return container ? container.querySelector('[role="dialog"]') : null;
+  }
+
+  function trapModalFocus(event, dialog) {
+    var items = Array.from(dialog.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])')).filter(function (item) {
+      var style = window.getComputedStyle(item);
+      return item.tabIndex >= 0 && !item.hidden && item.getAttribute('aria-hidden') !== 'true'
+        && style.display !== 'none' && style.visibility !== 'hidden' && item.getClientRects().length > 0;
+    });
+    if (!items.length) return;
+    var first = items[0];
+    var last = items[items.length - 1];
+    if (!dialog.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    } else if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   function closeOverlay() {
-    var o = $('#jvbOverlay'); if (o) o.remove();
+    releaseModal($('#jvbOverlay'), true);
   }
 
   function openQuillOverlay(initial, onSave) {
@@ -1341,6 +1404,7 @@
       ] },
     });
     quill.root.innerHTML = initial || '';
+    prepareModal(o, o.querySelector('.jvb-overlay__inner'), 'Edit content', quill.root);
     o.querySelector('[data-act="cancel"]').addEventListener('click', closeOverlay);
     o.querySelector('[data-act="save"]').addEventListener('click', function () {
       onSave(quill.root.innerHTML);
@@ -1369,6 +1433,7 @@
     } else {
       $('#jvbCodeHost').value = initial || '';
     }
+    prepareModal(o, o.querySelector('.jvb-overlay__inner'), 'Edit code', cm ? cm.getInputField() : $('#jvbCodeHost'));
     o.querySelector('[data-act="cancel"]').addEventListener('click', closeOverlay);
     o.querySelector('[data-act="save"]').addEventListener('click', function () {
       onSave(cm ? cm.getValue() : $('#jvbCodeHost').value);
@@ -1387,13 +1452,14 @@
       '<button class="jvb-btn-dark primary" data-act="save">Save</button></div></div>';
     document.body.appendChild(o);
     $('#jvbPageCss').value = (S.layout.settings || {}).custom_css || '';
-    o.addEventListener('click', function (e) { if (e.target === o) o.remove(); });
-    o.querySelector('[data-act="cancel"]').addEventListener('click', function () { o.remove(); });
+    prepareModal(o, o.querySelector('.jvb-modal__inner'), 'Page settings', $('#jvbPageCss'));
+    o.addEventListener('click', function (e) { if (e.target === o) releaseModal(o, true); });
+    o.querySelector('[data-act="cancel"]').addEventListener('click', function () { releaseModal(o, true); });
     o.querySelector('[data-act="save"]').addEventListener('click', function () {
       pushUndo();
       S.layout.settings = S.layout.settings || {};
       S.layout.settings.custom_css = $('#jvbPageCss').value;
-      markDirty(true); refreshFrame(); o.remove();
+      markDirty(true); refreshFrame(); releaseModal(o, true);
       toast('Page CSS saved', 'success');
     });
   }
@@ -1404,12 +1470,15 @@
   function openPostSettings(onSave) {
     _postSettingsCallback = onSave || null;
     var modal = $('#jvbPostModal');
-    if (modal) modal.hidden = false;
+    if (modal) {
+      modal.hidden = false;
+      prepareModal(modal, modal.querySelector('[role="dialog"]'), 'Post settings', $('#jvbPostTitle'));
+    }
   }
 
   function closePostSettings() {
     var modal = $('#jvbPostModal');
-    if (modal) modal.hidden = true;
+    if (modal) releaseModal(modal, false);
     _postSettingsCallback = null;
   }
 
@@ -1461,13 +1530,14 @@
       '<div class="jvb-modal__actions"><button class="jvb-btn-dark" data-act="cancel">Cancel</button>' +
       '<button class="jvb-btn-dark primary" data-act="save">Save</button></div></div>';
     document.body.appendChild(o);
-    o.addEventListener('click', function (e) { if (e.target === o) o.remove(); });
-    o.querySelector('[data-act="cancel"]').addEventListener('click', function () { o.remove(); });
+    prepareModal(o, o.querySelector('.jvb-modal__inner'), 'Save section as template', $('#jvbTplName'));
+    o.addEventListener('click', function (e) { if (e.target === o) releaseModal(o, true); });
+    o.querySelector('[data-act="cancel"]').addEventListener('click', function () { releaseModal(o, true); });
     o.querySelector('[data-act="save"]').addEventListener('click', function () {
       var name = $('#jvbTplName').value.trim();
       if (!name) { toast('Name required', true); return; }
       api('template_save', { title: name, type: 'section', layout: secNode }).then(function (res) {
-        o.remove();
+        releaseModal(o, true);
         if (res.success) { toast('Template saved', 'success'); loadTemplates(); }
         else toast(res.message || 'Failed', true);
       });
@@ -1481,7 +1551,8 @@
       if (!res.success) { host.innerHTML = ''; return; }
       host.innerHTML = '';
       (res.templates || []).forEach(function (tpl) {
-        var card = document.createElement('div');
+        var card = document.createElement('button');
+        card.type = 'button';
         card.className = 'jvb-tpl-card';
         card.innerHTML = '<strong>' + esc(tpl.title) + '</strong><span>' + esc(tpl.type) +
           (tpl.is_starter == 1 ? ' · <span class="jvb-tpl-badge">Starter</span>' : '') + '</span>';
@@ -1593,12 +1664,15 @@
   }
 
   function openImport() {
-    $('#jvbImportModal').hidden = false;
+    var modal = $('#jvbImportModal');
+    modal.hidden = false;
     var t = $('#jvbImportText');
     t.value = '';
-    t.focus();
+    prepareModal(modal, modal.querySelector('[role="dialog"]'), 'Import layout', t);
   }
-  function closeImport() { $('#jvbImportModal').hidden = true; }
+  function closeImport() {
+    releaseModal($('#jvbImportModal'), false);
+  }
 
   function applyImport() {
     var raw = $('#jvbImportText').value.trim();
@@ -1635,8 +1709,7 @@
     secBtn.innerHTML = (S.iconSvgs['layout-template'] || S.iconSvgs['grid-3x3'] || '') + '<span>Section</span>';
     secBtn.title = 'Add a section (rows & columns)';
     secBtn.addEventListener('click', function () {
-      $$('.jvb-left__tabs button').forEach(function (x) { x.classList.toggle('is-active', x.dataset.tab === 'sections'); });
-      $$('[data-tabpanel]').forEach(function (p) { p.hidden = p.dataset.tabpanel !== 'sections'; });
+      activateLeftTab('sections', true);
     });
     secGroup.appendChild(secBtn);
     host.appendChild(secGroup);
@@ -1851,12 +1924,45 @@
     });
   }
 
+  function activateLeftTab(tab, moveFocus) {
+    $$('.jvb-left__tabs button').forEach(function (button) {
+      var active = button.dataset.tab === tab;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+      button.tabIndex = active ? 0 : -1;
+      if (active && moveFocus) button.focus();
+    });
+    $$('[data-tabpanel]').forEach(function (panel) { panel.hidden = panel.dataset.tabpanel !== tab; });
+    if (tab === 'templates') loadTemplates();
+  }
+
+  function wireTabKeys(selector) {
+    var list = $(selector);
+    if (!list) return;
+    list.addEventListener('keydown', function (event) {
+      if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(event.key) === -1) return;
+      var tabs = Array.from(list.querySelectorAll('[role="tab"]'));
+      var index = tabs.indexOf(document.activeElement);
+      if (index < 0) return;
+      event.preventDefault();
+      if (event.key === 'Home') index = 0;
+      else if (event.key === 'End') index = tabs.length - 1;
+      else index = (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      tabs[index].focus();
+      tabs[index].click();
+    });
+  }
+
   // ───────────────────────── Toolbar wiring ─────────────────────────
   function wireToolbar() {
     $$('#jvbDevices button').forEach(function (b) {
       b.addEventListener('click', function () {
-        $$('#jvbDevices button').forEach(function (x) { x.classList.remove('is-active'); });
+        $$('#jvbDevices button').forEach(function (x) {
+          x.classList.remove('is-active');
+          x.setAttribute('aria-pressed', 'false');
+        });
         b.classList.add('is-active');
+        b.setAttribute('aria-pressed', 'true');
         S.device = b.dataset.device;
         $('#jvbFrameWrap').dataset.device = S.device;
         // re-render panel so device fields follow the preview device
@@ -1896,20 +2002,22 @@
     });
     $$('.jvb-left__tabs button').forEach(function (b) {
       b.addEventListener('click', function () {
-        $$('.jvb-left__tabs button').forEach(function (x) { x.classList.remove('is-active'); });
-        b.classList.add('is-active');
-        var tab = b.dataset.tab;
-        $$('[data-tabpanel]').forEach(function (p) { p.hidden = p.dataset.tabpanel !== tab; });
-        if (tab === 'templates') loadTemplates();
+        activateLeftTab(b.dataset.tab, false);
       });
     });
+    activateLeftTab('elements', false);
+    $$('#jvbPanelTabs button').forEach(function (button) {
+      button.tabIndex = button.classList.contains('is-active') ? 0 : -1;
+    });
+    wireTabKeys('.jvb-left__tabs');
+    wireTabKeys('#jvbPanelTabs');
     $('#jvbPaletteSearch').addEventListener('input', function (e) { filterPalette(e.target.value); });
 
     // Side panel show/hide via semicircle edge tabs (persisted)
     var edgeLeft = $('#jvbEdgeLeft');
     function setLeftHidden(hidden) {
       $('#jvbApp').classList.toggle('left-hidden', hidden);
-      edgeLeft.textContent = hidden ? '❯' : '❮';
+      edgeLeft.setAttribute('aria-expanded', hidden ? 'false' : 'true');
       try { localStorage.setItem('jvb_left_hidden', hidden ? '1' : '0'); } catch (e) {}
     }
     edgeLeft.addEventListener('click', function () {
@@ -1921,7 +2029,7 @@
     var edgeRight = $('#jvbEdgeRight');
     S.setRightHidden = function (hidden) {
       $('#jvbApp').classList.toggle('right-hidden', hidden);
-      edgeRight.textContent = hidden ? '❮' : '❯';
+      edgeRight.setAttribute('aria-expanded', hidden ? 'false' : 'true');
       try { localStorage.setItem('jvb_right_hidden', hidden ? '1' : '0'); } catch (e) {}
     };
     edgeRight.addEventListener('click', function () {
@@ -2062,8 +2170,7 @@
       case 'insert-section':
         S.pendingInsertAfter = msg.afterId;
         // open sections tab
-        $$('.jvb-left__tabs button').forEach(function (x) { x.classList.toggle('is-active', x.dataset.tab === 'sections'); });
-        $$('[data-tabpanel]').forEach(function (p) { p.hidden = p.dataset.tabpanel !== 'sections'; });
+        activateLeftTab('sections', true);
         toast('Pick a section layout', 'info');
         break;
     }
@@ -2214,6 +2321,18 @@
   function onKeydown(e) {
     var tag = (e.target.tagName || '').toLowerCase();
     var typing = tag === 'input' || tag === 'textarea' || e.target.isContentEditable || $('.jvb-overlay');
+    var dialog = activeModalDialog();
+    if (e.key === 'Tab' && dialog) {
+      trapModalFocus(e, dialog);
+      return;
+    }
+    if (e.key === 'Escape') {
+      if ($('#jvbOverlay')) { closeOverlay(); e.preventDefault(); return; }
+      if ($('#jvbModal')) { releaseModal($('#jvbModal'), true); e.preventDefault(); return; }
+      if (!$('#jvbPostModal').hidden) { closePostSettings(); e.preventDefault(); return; }
+      if (!$('#jvbImportModal').hidden) { closeImport(); e.preventDefault(); return; }
+      if (!$('#jvbRevDrawer').hidden) { $('#jvbRevDrawer').hidden = true; e.preventDefault(); return; }
+    }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
       e.preventDefault(); undo(); return;
     }

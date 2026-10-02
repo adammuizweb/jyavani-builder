@@ -55,7 +55,7 @@ $templates = jvb_list_templates($pdo);
 ?>
 <div class="jvba">
   <div class="jvba-head">
-    <h1>Template Library</h1>
+    <div><span class="jvba-eyebrow">Reusable layouts</span><h1>Template Library</h1><p>Manage starter and custom layouts available inside the builder.</p></div>
     <div class="jvba-actions">
       <a class="jvba-btn" href="<?= jvb_url() ?>">‹ Pages</a>
       <?php if ($canManageSite): ?><form method="post" style="display:inline" onsubmit="return confirm('Restore starter templates? Your own templates are kept.')">
@@ -70,7 +70,8 @@ $templates = jvb_list_templates($pdo);
   <div class="jvba-flash <?= $flashOk ? 'ok' : 'err' ?>"><?= htmlspecialchars($flash, ENT_QUOTES) ?></div>
   <?php endif; ?>
 
-  <div class="jvba-card">
+  <div class="jvba-card jvba-card--guide">
+    <?= svg_ico('book-open', 'jvb-ic') ?>
     <span class="jvba-hint">Templates are inserted from the builder (left panel → Templates tab). Save any section or whole page as a template from the builder's canvas tools. Starters are built-in and can't be deleted.</span>
   </div>
 
@@ -83,11 +84,11 @@ $templates = jvb_list_templates($pdo);
       <tbody>
       <?php foreach ($templates as $tpl): ?>
         <tr>
-          <td><strong><?= htmlspecialchars($tpl['title'], ENT_QUOTES) ?></strong></td>
-          <td><?= htmlspecialchars($tpl['type'], ENT_QUOTES) ?></td>
-          <td><?= !empty($tpl['is_starter']) ? '<span class="jvba-badge published">Starter</span>' : '<span class="jvba-badge none">Custom</span>' ?></td>
-          <td class="jvba-sub"><?= htmlspecialchars(date('d M Y H:i', strtotime((string)$tpl['updated_at'])), ENT_QUOTES) ?></td>
-          <td>
+          <td data-label="Title"><strong><?= htmlspecialchars($tpl['title'], ENT_QUOTES) ?></strong></td>
+          <td data-label="Type"><?= htmlspecialchars($tpl['type'], ENT_QUOTES) ?></td>
+          <td data-label="Source"><?= !empty($tpl['is_starter']) ? '<span class="jvba-badge published">Starter</span>' : '<span class="jvba-badge none">Custom</span>' ?></td>
+          <td class="jvba-sub" data-label="Updated"><?= htmlspecialchars(date('d M Y H:i', strtotime((string)$tpl['updated_at'])), ENT_QUOTES) ?></td>
+          <td data-label="Actions">
             <?php if (empty($tpl['is_starter']) && ($canManageAny || (int)($tpl['created_by'] ?? 0) === $uid)): ?>
             <form method="post" style="display:inline" onsubmit="return confirm('Delete this template?')">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">

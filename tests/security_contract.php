@@ -21,7 +21,7 @@ try {
 $plugin = (string)file_get_contents($root . '/plugin.php');
 
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.148', 'manifest requires the shared content-list Core release');
-$check(($manifest['version'] ?? null) === '3.3.3' && str_contains($plugin, "const JVB_VERSION = '3.3.3'"), 'manifest and runtime declare the 3.3.3 candidate');
+$check(($manifest['version'] ?? null) === '3.3.4' && str_contains($plugin, "const JVB_VERSION = '3.3.4'"), 'manifest and runtime declare the 3.3.4 candidate');
 $permissionKeys = array_column($manifest['permissions'] ?? [], 'key');
 sort($permissionKeys);
 $expectedKeys = [

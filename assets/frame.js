@@ -55,6 +55,10 @@
           '<button data-act="dup" title="Duplicate">' + (ICONS['copy'] || 'D') + '</button>' +
           '<button data-act="tpl" title="Save as template">' + (ICONS['bookmark'] || 'T') + '</button>' +
           '<button data-act="del" title="Delete" class="danger">' + (ICONS['x'] || '×') + '</button>';
+        tools.querySelectorAll('button').forEach(function (button) {
+          button.type = 'button';
+          button.setAttribute('aria-label', button.title);
+        });
         node.insertBefore(tools, node.firstChild);
       }
 
@@ -68,6 +72,10 @@
           '<button data-act="down" title="Move down">' + (ICONS['arrow-down'] || '↓') + '</button>' +
           '<button data-act="dup" title="Duplicate row">' + (ICONS['copy'] || 'D') + '</button>' +
           '<button data-act="del" title="Delete row" class="danger">' + (ICONS['x'] || '×') + '</button>';
+        tools.querySelectorAll('button').forEach(function (button) {
+          button.type = 'button';
+          button.setAttribute('aria-label', button.title);
+        });
         node.insertBefore(tools, node.firstChild);
       }
 
@@ -80,6 +88,10 @@
           '<button data-act="right" title="Move right">' + (ICONS['chevron-right'] || '>') + '</button>' +
           '<button data-act="dup" title="Duplicate column">' + (ICONS['copy'] || 'D') + '</button>' +
           '<button data-act="del" title="Delete column" class="danger">' + (ICONS['x'] || '×') + '</button>';
+        tools.querySelectorAll('button').forEach(function (button) {
+          button.type = 'button';
+          button.setAttribute('aria-label', button.title);
+        });
         node.insertBefore(tools, node.firstChild);
       }
     });
@@ -92,19 +104,23 @@
       if (!inner) return;
       var rows = inner.querySelectorAll(':scope > .jvb-row[data-jvb]');
       // top spot (before first row)
-      var spotTop = document.createElement('div');
+      var spotTop = document.createElement('button');
+      spotTop.type = 'button';
       spotTop.className = 'jvb-row-spot jvb-row-spot--top';
       spotTop.innerHTML = '<span class="jvb-spot-btn">+</span>';
       spotTop.title = 'Add row above';
+      spotTop.setAttribute('aria-label', spotTop.title);
       if (rows.length) rows[0].insertAdjacentElement('beforebegin', spotTop);
       else inner.appendChild(spotTop);
       // between spots
       rows.forEach(function (row) {
-        var spot = document.createElement('div');
+        var spot = document.createElement('button');
+        spot.type = 'button';
         spot.className = 'jvb-row-spot';
         spot.innerHTML = '<span class="jvb-spot-btn">+</span>';
         spot.dataset.after = row.getAttribute('data-jvb');
         spot.title = 'Add row below';
+        spot.setAttribute('aria-label', spot.title);
         row.insertAdjacentElement('afterend', spot);
       });
     });
@@ -116,18 +132,22 @@
       var cols = row.querySelectorAll(':scope > .jvb-col[data-jvb]');
       if (!cols.length) return;
       // left edge
-      var spotLeft = document.createElement('div');
+      var spotLeft = document.createElement('button');
+      spotLeft.type = 'button';
       spotLeft.className = 'jvb-col-spot jvb-col-spot--left';
       spotLeft.innerHTML = '<span class="jvb-spot-btn">+</span>';
       spotLeft.title = 'Add column left';
+      spotLeft.setAttribute('aria-label', spotLeft.title);
       spotLeft.dataset.idx = '0';
       cols[0].insertAdjacentElement('beforebegin', spotLeft);
       // between
       cols.forEach(function (col, i) {
-        var spot = document.createElement('div');
+        var spot = document.createElement('button');
+        spot.type = 'button';
         spot.className = 'jvb-col-spot';
         spot.innerHTML = '<span class="jvb-spot-btn">+</span>';
         spot.title = 'Add column here';
+        spot.setAttribute('aria-label', spot.title);
         spot.dataset.idx = String(i + 1);
         col.insertAdjacentElement('afterend', spot);
       });
@@ -142,9 +162,11 @@
     var page = document.querySelector('.jvb-page');
     if (!page) return;
     page.querySelectorAll(':scope > .jvb-section').forEach(function (sec) {
-      var bar = document.createElement('div');
+      var bar = document.createElement('button');
+      bar.type = 'button';
       bar.className = 'jvb-insert-sec';
       bar.innerHTML = '<span>+ Add section</span>';
+      bar.setAttribute('aria-label', 'Add section');
       bar.dataset.after = sec.getAttribute('data-jvb');
       sec.insertAdjacentElement('afterend', bar);
     });

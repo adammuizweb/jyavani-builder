@@ -2,7 +2,7 @@
 
 Visual drag-and-drop builder for [Jyavani CMS](https://github.com/adammuizweb/jyavani). Works with articles, pages, and themes.
 
-![Version](https://img.shields.io/badge/version-3.3.3-blue)
+![Version](https://img.shields.io/badge/version-3.3.4-blue)
 ![PHP](https://img.shields.io/badge/PHP-%3E%3D8.1-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -11,7 +11,7 @@ Visual drag-and-drop builder for [Jyavani CMS](https://github.com/adammuizweb/jy
 - **WYSIWYG iframe canvas** with inline text editing
 - **Public-shell preview** with the active theme header and footer shown muted and noninteractive
 - **Section > Row > Column > Element** hierarchy (Divi-style)
-- **20 element types**: heading, richtext, image, button, icon, spacer, divider, video, accordion, tabs, counter, countdown, gallery, testimonial, pricing, iconbox, posts grid, form, HTML, shortcode
+- **22 element types**: heading, richtext, image, button, icon, spacer, divider, video, accordion, tabs, counter, countdown, gallery, carousel, card, testimonial, pricing, iconbox, posts grid, form, HTML, shortcode
 - **Drag-and-drop** palette with pointer-based cross-iframe DnD
 - **Responsive controls** — per-device settings for desktop, tablet, mobile
 - **Design tokens** — 8 color tokens, typography scale, spacing system
@@ -64,7 +64,7 @@ unzip jyavani-builder.zip
 | Group | Elements |
 |-------|----------|
 | Basic | Heading, Rich Text, Image, Button, Icon, Spacer, Divider, Video |
-| Content | Accordion, Tabs, Counter, Countdown, Gallery, Testimonial, Pricing, Icon Box |
+| Content | Accordion, Tabs, Counter, Countdown, Gallery, Carousel, Card, Testimonial, Pricing, Icon Box |
 | Dynamic | Posts Grid, Form |
 | Advanced | HTML, Shortcode |
 

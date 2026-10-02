@@ -58,7 +58,7 @@ $colorField = static function (string $name, string $label, string $val): void {
 ?>
 <div class="jvba">
   <div class="jvba-head">
-    <h1>Design Tokens</h1>
+    <div><span class="jvba-eyebrow">Global visual system</span><h1>Design Tokens</h1><p>Define the reusable color, typography, spacing, and shape language for builder pages.</p></div>
     <div class="jvba-actions">
       <a class="jvba-btn" href="<?= jvb_url() ?>">‹ Pages</a>
     </div>
@@ -68,15 +68,15 @@ $colorField = static function (string $name, string $label, string $val): void {
   <div class="jvba-flash <?= $flashOk ? 'ok' : 'err' ?>"><?= htmlspecialchars($flash, ENT_QUOTES) ?></div>
   <?php endif; ?>
 
-  <div class="jvba-card">
+  <div class="jvba-card jvba-card--guide">
+    <?= svg_ico('palette', 'jvb-ic') ?>
     <span class="jvba-hint">Global design system for all builder pages. Elements reference these tokens (<span class="jvba-mono">var(--jvb-primary)</span> etc.) — change once, rebrand everywhere. Token-aware color fields in the builder accept a token name (<span class="jvba-mono">primary</span>) or a hex value.</span>
   </div>
 
   <form method="post">
     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
 
-    <div class="jvba-group-title">Colors</div>
-    <div class="jvba-tokens">
+    <section class="jvba-token-section"><div class="jvba-group-title">Colors</div><div class="jvba-tokens">
       <?php
       $colorField('c_primary', 'Primary', $c['primary']);
       $colorField('c_secondary', 'Secondary', $c['secondary']);
@@ -87,26 +87,24 @@ $colorField = static function (string $name, string $label, string $val): void {
       $colorField('c_alt', 'Alt Surface', $c['alt']);
       $colorField('c_border', 'Border', $c['border']);
       ?>
-    </div>
+    </div></section>
 
-    <div class="jvba-group-title">Typography</div>
-    <div class="jvba-tokens">
+    <section class="jvba-token-section"><div class="jvba-group-title">Typography</div><div class="jvba-tokens">
       <div class="jvba-field"><label>Body Font</label><input type="text" name="t_font_body" value="<?= htmlspecialchars($t['font_body'], ENT_QUOTES) ?>"></div>
       <div class="jvba-field"><label>Heading Font</label><input type="text" name="t_font_heading" value="<?= htmlspecialchars($t['font_heading'], ENT_QUOTES) ?>"></div>
       <div class="jvba-field"><label>Base Size (px)</label><input type="number" name="t_base_size" value="<?= (int)$t['base_size'] ?>" min="12" max="24"></div>
       <div class="jvba-field"><label>Modular Scale</label><input type="number" step="0.05" name="t_scale" value="<?= htmlspecialchars((string)$t['scale'], ENT_QUOTES) ?>" min="1" max="2"></div>
       <div class="jvba-field"><label>Line Height</label><input type="number" step="0.05" name="t_line_height" value="<?= htmlspecialchars((string)$t['line_height'], ENT_QUOTES) ?>" min="1" max="2.5"></div>
-    </div>
+    </div></section>
 
-    <div class="jvba-group-title">Spacing & Shape</div>
-    <div class="jvba-tokens">
+    <section class="jvba-token-section"><div class="jvba-group-title">Spacing & Shape</div><div class="jvba-tokens">
       <div class="jvba-field"><label>Container Width (px)</label><input type="number" name="s_container" value="<?= (int)$s['container'] ?>" min="600" max="1920"></div>
       <div class="jvba-field"><label>Section Vertical Padding (px)</label><input type="number" name="s_section_y" value="<?= (int)$s['section_y'] ?>" min="0" max="400"></div>
       <div class="jvba-field"><label>Gap (px)</label><input type="number" name="s_gap" value="<?= (int)$s['gap'] ?>" min="0" max="120"></div>
       <div class="jvba-field"><label>Corner Radius (px)</label><input type="number" name="s_radius" value="<?= (int)$s['radius'] ?>" min="0" max="60"></div>
-    </div>
+    </div></section>
 
-    <div style="margin-top:1.25rem">
+    <div class="jvba-form-actions">
       <button class="jvba-btn primary" type="submit">Save Tokens</button>
     </div>
   </form>

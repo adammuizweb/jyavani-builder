@@ -23,6 +23,7 @@ $csrf = function_exists('csrf_token') ? csrf_token() : '';
 
 // Row actions (POST, CSRF-checked, re-renders list — no redirect needed)
 $actionMsg = '';
+$actionOk = false;
 $act = (string)($_POST['jvb_action'] ?? '');
 if ($act !== '') {
     $okCsrf = function_exists('csrf_check') && csrf_check((string)($_POST['csrf_token'] ?? ''));
@@ -64,6 +65,7 @@ if ($act !== '') {
                            SELECT ?, status, draft_json, published_json, published_at FROM jvb_layouts WHERE post_id = ?')
                 ->execute([$newId, $pid]);
             $actionMsg = 'Duplicated as "' . $newTitle . '" (draft).';
+            $actionOk = true;
             }
         }
     }
@@ -181,7 +183,11 @@ foreach ($_GET as $key => $value) {
 }
 
 $builderCount = 0;
-foreach ($posts as $p) { if ($p['jvb_status'] !== null) $builderCount++; }
+$publishedBuilderCount = 0;
+foreach ($posts as $p) {
+    if ($p['jvb_status'] !== null) $builderCount++;
+    if ($p['jvb_status'] === 'published') $publishedBuilderCount++;
+}
 $listTotal = count($posts);
 $listPages = max(1, (int)ceil($listTotal / $listPerPage));
 $listPage = min($listPage, $listPages);
@@ -211,9 +217,12 @@ $listPagingItems = $buildPaginationItems($listPage, $listPages);
 $homePostId = jvb_home_post_id($pdo);
 ?>
 <div class="jvba">
-  <?php if ($actionMsg !== ''): ?><div class="jvba-card" style="margin-bottom:.75rem"><?= htmlspecialchars($actionMsg, ENT_QUOTES) ?></div><?php endif; ?>
-  <div class="jvba-head">
-    <h1>Jy Builder</h1>
+  <?php if ($actionMsg !== ''): ?><div class="jvba-flash <?= $actionOk ? 'ok' : 'err' ?>"><?= htmlspecialchars($actionMsg, ENT_QUOTES) ?></div><?php endif; ?>
+  <header class="jvba-hero">
+    <div class="jvba-hero__intro">
+      <span class="jvba-hero__mark" aria-hidden="true"><?= svg_ico('panel-top', 'jvb-ic') ?></span>
+      <div><span class="jvba-eyebrow">Visual workspace</span><h1>Jy Builder</h1><p>Build, preview, and publish structured pages without leaving your content workflow.</p></div>
+    </div>
     <div class="jvba-actions">
       <?php if ($canCreate || $isSiteOwner): ?><a class="jvba-btn primary" href="<?= jvb_url(['view' => 'builder']) ?>"><?= svg_ico('plus', 'jvb-ic', ['style' => 'width:13px;height:13px']) ?> New</a><?php endif; ?>
       <a class="jvba-btn" href="<?= jvb_url(['view' => 'templates']) ?>">Templates</a>
@@ -221,7 +230,13 @@ $homePostId = jvb_home_post_id($pdo);
       <a class="jvba-btn" href="<?= jvb_url(['view' => 'tokens']) ?>">Design Tokens</a>
       <?php endif; ?>
     </div>
-  </div>
+  </header>
+
+  <section class="jvba-stats" aria-label="Builder overview">
+    <article class="jvba-stat"><span class="jvba-stat__icon" aria-hidden="true"><?= svg_ico('file', 'jvb-ic') ?></span><div><strong><?= $listTotal ?></strong><span>Available content</span></div></article>
+    <article class="jvba-stat"><span class="jvba-stat__icon" aria-hidden="true"><?= svg_ico('box', 'jvb-ic') ?></span><div><strong><?= $builderCount ?></strong><span>Using Jy Builder</span></div></article>
+    <article class="jvba-stat"><span class="jvba-stat__icon" aria-hidden="true"><?= svg_ico('circle-check', 'jvb-ic') ?></span><div><strong><?= $publishedBuilderCount ?></strong><span>Published layouts</span></div></article>
+  </section>
 
   <div class="jvba-toolbar">
     <form method="get" class="jvba-search" id="jvb-list-filter">
@@ -233,9 +248,9 @@ $homePostId = jvb_home_post_id($pdo);
       <?php if ($q !== '' || $typeFilter !== ''): ?><a class="jvba-btn sm" href="<?= jvb_url() ?>">Reset</a><?php endif; ?>
     </form>
     <div class="jvba-actions">
-      <a class="jvba-btn sm" href="<?= jvb_url(array_merge($listExtensionQuery, ['type' => $typeFilter === 'page' ? null : 'page', 'q' => $q ?: null])) ?>">Pages</a>
-      <a class="jvba-btn sm" href="<?= jvb_url(array_merge($listExtensionQuery, ['type' => $typeFilter === 'article' ? null : 'article', 'q' => $q ?: null])) ?>">Articles</a>
-      <?php if ($isSiteOwner): ?><a class="jvba-btn sm" href="<?= jvb_url(array_merge($listExtensionQuery, ['type' => $typeFilter === 'theme' ? null : 'theme', 'q' => $q ?: null])) ?>">Theme Content</a><?php endif; ?>
+      <a class="jvba-btn jvba-filter sm<?= $typeFilter === 'page' ? ' is-active' : '' ?>"<?= $typeFilter === 'page' ? ' aria-current="true"' : '' ?> href="<?= jvb_url(array_merge($listExtensionQuery, ['type' => $typeFilter === 'page' ? null : 'page', 'q' => $q ?: null])) ?>">Pages</a>
+      <a class="jvba-btn jvba-filter sm<?= $typeFilter === 'article' ? ' is-active' : '' ?>"<?= $typeFilter === 'article' ? ' aria-current="true"' : '' ?> href="<?= jvb_url(array_merge($listExtensionQuery, ['type' => $typeFilter === 'article' ? null : 'article', 'q' => $q ?: null])) ?>">Articles</a>
+      <?php if ($isSiteOwner): ?><a class="jvba-btn jvba-filter sm<?= $typeFilter === 'theme' ? ' is-active' : '' ?>"<?= $typeFilter === 'theme' ? ' aria-current="true"' : '' ?> href="<?= jvb_url(array_merge($listExtensionQuery, ['type' => $typeFilter === 'theme' ? null : 'theme', 'q' => $q ?: null])) ?>">Theme Content</a><?php endif; ?>
       <span class="jvba-hint"><?= $listTotal ?> posts · <?= $builderCount ?> with builder</span>
     </div>
   </div>
@@ -263,15 +278,14 @@ $homePostId = jvb_home_post_id($pdo);
         }
         ?>
         <tr>
-          <td>
-            <strong><?= htmlspecialchars($p['title'], ENT_QUOTES) ?></strong>
-            <span class="jvba-sub jvba-mono"><?= htmlspecialchars($viewPath, ENT_QUOTES) ?></span>
+          <td data-label="Post">
+            <div class="jvba-post-title"><strong><?= htmlspecialchars($p['title'], ENT_QUOTES) ?></strong><span class="jvba-sub jvba-mono"><?= htmlspecialchars($viewPath, ENT_QUOTES) ?></span></div>
           </td>
-          <td><?= htmlspecialchars($p['type'], ENT_QUOTES) ?></td>
-          <td><span class="jvba-sub"><?= htmlspecialchars($p['status'], ENT_QUOTES) ?></span></td>
-          <td><span class="jvba-badge <?= $badgeCls ?>"><?= $badgeLbl ?></span><?php if ($homePostId === $pid): ?> <span class="jvba-badge published" title="This post provides the homepage layout"><?= svg_ico('house', 'jvb-ic', ['style' => 'width:12px;height:12px']) ?> Home</span><?php endif; ?></td>
-          <td class="jvba-updated"><span class="jvba-sub"><?= htmlspecialchars(app_display_date((string)$p['updated_at']), ENT_QUOTES) ?></span></td>
-          <td class="jvba-actions-cell">
+          <td data-label="Type"><?= htmlspecialchars($p['type'], ENT_QUOTES) ?></td>
+          <td data-label="Post status"><span class="jvba-sub"><?= htmlspecialchars($p['status'], ENT_QUOTES) ?></span></td>
+          <td data-label="Builder"><span class="jvba-badge <?= $badgeCls ?>"><?= $badgeLbl ?></span><?php if ($homePostId === $pid): ?> <span class="jvba-badge published" title="This post provides the homepage layout"><?= svg_ico('house', 'jvb-ic', ['style' => 'width:12px;height:12px']) ?> Home</span><?php endif; ?></td>
+          <td class="jvba-updated" data-label="Updated"><span class="jvba-sub"><?= htmlspecialchars(app_display_date((string)$p['updated_at']), ENT_QUOTES) ?></span></td>
+          <td class="jvba-actions-cell" data-label="Actions">
             <div class="jvba-overflow">
               <button class="jvba-overflow-trigger" type="button" aria-label="Actions for <?= htmlspecialchars($p['title'], ENT_QUOTES) ?>" aria-haspopup="menu" aria-expanded="false" aria-controls="jvba-menu-<?= $pid ?>"><span aria-hidden="true">&#8230;</span></button>
               <div class="jvba-overflow-menu" id="jvba-menu-<?= $pid ?>" role="menu" hidden>
@@ -312,7 +326,8 @@ $homePostId = jvb_home_post_id($pdo);
     </nav>
   <?php endif; ?>
 
-  <div class="jvba-card" style="margin-top:1rem">
+  <div class="jvba-card jvba-card--guide" style="margin-top:1rem">
+    <?= svg_ico('book-open', 'jvb-ic') ?>
     <span class="jvba-hint">
       <strong>Draft → Publish workflow:</strong> edits in the builder are autosaved as a draft and never touch the live page until you click <strong>Publish</strong>.
       Preview drafts any time with <span class="jvba-mono">?jvb_preview=1</span> on the page URL. Revisions are kept automatically on each publish (last <?= JVB_MAX_REVISIONS ?>).

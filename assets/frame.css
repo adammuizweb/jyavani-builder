@@ -4,6 +4,7 @@ html.jvb-frame-document body { margin: 0; padding: 0; background: #f1f5f9; }
 body.jvb-frame { min-height: 100vh; }
 .jvb-page { min-height: 100vh; background: #fff; }
 .jvb-preview-bar { display: none; }
+.jvb-frame button { font-family:system-ui,-apple-system,'Segoe UI',sans-serif; }
 
 /* Keep the real public shell visible for context while making it noninteractive. */
 html.jvb-frame-document body > :not(#site-main):not(script) {
@@ -51,6 +52,7 @@ html.jvb-frame-document body > :not(#site-main):not(script) * { pointer-events: 
   display: flex; align-items: center; justify-content: center; pointer-events: auto;
 }
 .jvb-sec-tools button:hover { background: #334155; color: #fff; }
+.jvb-sec-tools button:focus-visible, .jvb-row-tools button:focus-visible, .jvb-col-tools button:focus-visible, .jvb-row-spot:focus-visible, .jvb-col-spot:focus-visible, .jvb-insert-sec:focus-visible { outline:3px solid rgba(96,165,250,.75); outline-offset:2px; }
 .jvb-sec-tools button.danger:hover { background: #dc2626; }
 
 .jvb-sec-tools button svg { width: 12px; height: 12px; display: block; }
@@ -99,7 +101,7 @@ html.jvb-frame-document body > :not(#site-main):not(script) * { pointer-events: 
   height: 20px; overflow: hidden; cursor: pointer;
   pointer-events: auto; line-height: 1;
   position: relative; z-index: 10;
-  border-radius: 4px;
+  width:100%; padding:0; border:0; border-radius:4px;
   opacity: .4; transition: opacity .15s;
   background: repeating-linear-gradient(
     -45deg,
@@ -109,6 +111,7 @@ html.jvb-frame-document body > :not(#site-main):not(script) * { pointer-events: 
     rgba(100,116,139,.3) 8px
   );
 }
+button.jvb-row-spot { pointer-events:auto; }
 .jvb-row-spot--top { margin-bottom: 4px; }
 .jvb-section__inner:hover .jvb-row-spot, .jvb-row-spot:hover { opacity: 1; }
 .jvb-row-spot:hover { background: repeating-linear-gradient(-45deg, rgba(100,116,139,.25), rgba(100,116,139,.25) 4px, rgba(100,116,139,.45) 4px, rgba(100,116,139,.45) 8px); }
@@ -117,7 +120,7 @@ html.jvb-frame-document body > :not(#site-main):not(script) * { pointer-events: 
   display: flex; align-items: center; justify-content: center;
   width: 8px; cursor: pointer; pointer-events: auto;
   white-space: nowrap; overflow: hidden;
-  flex-shrink: 0; border-radius: 4px;
+  flex-shrink:0; padding:0; border:0; border-radius:4px;
   opacity: .4; transition: opacity .15s;
   background: repeating-linear-gradient(
     -45deg,
@@ -127,6 +130,7 @@ html.jvb-frame-document body > :not(#site-main):not(script) * { pointer-events: 
     rgba(100,116,139,.3) 6px
   );
 }
+button.jvb-col-spot { pointer-events:auto; }
 .jvb-row[data-jvb]:hover .jvb-col-spot, .jvb-row.jvb-node-sel .jvb-col-spot { opacity: 1; }
 .jvb-col-spot:hover { background: repeating-linear-gradient(-45deg, rgba(100,116,139,.25), rgba(100,116,139,.25) 3px, rgba(100,116,139,.45) 3px, rgba(100,116,139,.45) 6px); }
 .jvb-col-spot--left { border-radius: 4px 0 0 4px; }
@@ -170,7 +174,7 @@ html.jvb-frame-document body > :not(#site-main):not(script) * { pointer-events: 
 /* ---------- Insert section bar ---------- */
 .jvb-insert-sec {
   display: flex; align-items: center; justify-content: center;
-  height: 6px; overflow: hidden; transition: height .15s; cursor: pointer;
+  width:100%; height:6px; padding:0; overflow:hidden; border:0; transition:height .15s; cursor:pointer;
   pointer-events: auto;
   background: repeating-linear-gradient(
     -45deg,
@@ -180,6 +184,7 @@ html.jvb-frame-document body > :not(#site-main):not(script) * { pointer-events: 
     rgba(148,163,184,.2) 8px
   );
 }
+button.jvb-insert-sec { pointer-events:auto; }
 .jvb-section[data-jvb]:hover + .jvb-insert-sec, .jvb-insert-sec:hover { height: 26px; }
 .jvb-insert-sec span {
   background: #475569; color: #fff; font: 600 11px system-ui, sans-serif;
@@ -202,3 +207,17 @@ html.jvb-frame-document body > :not(#site-main):not(script) * { pointer-events: 
 /* ---------- Flash on select ---------- */
 @keyframes jvb-flash { 0% { background: rgba(37,99,235,.15); } 100% { background: transparent; } }
 .jvb-flash { animation: jvb-flash .8s ease; }
+
+@media (max-width: 767px) {
+  .jvb-sec-tools button { width:34px; height:34px; }
+  .jvb-row-tools button, .jvb-col-tools button { width:32px; height:32px; }
+  .jvb-row-spot { min-height:30px; opacity:.72; }
+  .jvb-col-spot { width:18px; opacity:.72; }
+  .jvb-spot-btn { width:24px; height:24px; min-width:24px; }
+  .jvb-insert-sec, .jvb-section[data-jvb]:hover + .jvb-insert-sec, .jvb-insert-sec:hover { height:38px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-jvb], html.jvb-frame-document body > :not(#site-main):not(script), .jvb-row-spot, .jvb-col-spot, .jvb-insert-sec { transition:none; }
+  .jvb-flash { animation:none; }
+}
