@@ -21,7 +21,7 @@ try {
 $plugin = (string)file_get_contents($root . '/plugin.php');
 
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.148', 'manifest requires the shared content-list Core release');
-$check(($manifest['version'] ?? null) === '3.3.4' && str_contains($plugin, "const JVB_VERSION = '3.3.4'"), 'manifest and runtime declare the 3.3.4 candidate');
+$check(($manifest['version'] ?? null) === '3.3.5' && str_contains($plugin, "const JVB_VERSION = '3.3.5'"), 'manifest and runtime declare the 3.3.5 candidate');
 $permissionKeys = array_column($manifest['permissions'] ?? [], 'key');
 sort($permissionKeys);
 $expectedKeys = [
@@ -113,6 +113,9 @@ $check(str_contains($index, '$listPerPage = 15')
     'workspace list paginates fifteen authorized rows and preserves validated filters');
 $check(str_contains($adminUi, '.jvba-overflow-menu a:hover, .jvba-overflow-menu a:focus-visible { text-decoration: none !important; }'),
     'workspace link actions suppress inherited dashboard underlines');
+$check(str_contains($adminUi, '.jvba-stat > div > strong, .jvba-stat > div > span { display:block; }')
+    && !str_contains($adminUi, '.jvba-stat strong, .jvba-stat span'),
+    'overview card text styles do not override centered stat icons');
 $check(str_contains($builder, "'change_owner'") && str_contains($builder, '$canChangeOwner'), 'author selector requires both plugin elevation and Core change-owner permission');
 
 $check(str_contains($ajax, "!== 'POST'") && str_contains($ajax, 'jvb_csrf_ok()'), 'JSON mutations require POST and CSRF');
@@ -122,7 +125,14 @@ $check(str_contains($ajax, '$storedDraft') && str_contains($ajax, 'jvb_layout_ha
 $check(str_contains($ajax, '$revisionLayout') && str_contains($ajax, 'jvb_layout_has_restricted_elements($revisionLayout)'), 'revision restore validates stored restrictions');
 $check(str_contains($ajax, '$templateLayout') && str_contains($ajax, 'jvb_layout_has_restricted_elements($templateLayout)'), 'template retrieval hides restricted layouts');
 $check(!preg_match("/===\\s*'admin'|!==\\s*'admin'/", $ajax), 'AJAX authorization has no direct legacy-admin bypass');
-$check(str_contains($builderJs, 'post_id: S.postId') && str_contains($builderJs, 'post_type:'), 'frame stash sends its content resource context');
+$check(str_contains($builderJs, 'var framePostId = S.postId;')
+    && str_contains($builderJs, 'post_id: framePostId')
+    && str_contains($builderJs, 'post_type:'),
+    'frame stash captures its content resource context');
+$check(str_contains($builderJs, 'var frameUrl = new URL(boot.frameUrl, window.location.origin)')
+    && str_contains($builderJs, "frameUrl.searchParams.set('post_id', String(framePostId))")
+    && !str_contains($builderJs, "boot.frameUrl + '&preview_key='"),
+    'frame preview uses the exact post identity bound to its stash request');
 $check(str_contains($ajax, "require \$layoutPath")
     && str_contains($ajax, "add_filter('layout_slot_html'")
     && str_contains($ajax, "add_action('jy_head'")

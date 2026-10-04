@@ -2,7 +2,7 @@
 
 Visual drag-and-drop builder for [Jyavani CMS](https://github.com/adammuizweb/jyavani). Works with articles, pages, and themes.
 
-![Version](https://img.shields.io/badge/version-3.3.4-blue)
+![Version](https://img.shields.io/badge/version-3.3.5-blue)
 ![PHP](https://img.shields.io/badge/PHP-%3E%3D8.1-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 

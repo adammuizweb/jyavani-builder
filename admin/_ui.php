@@ -42,9 +42,10 @@ function jvb_admin_css(): void {
 .jvba-stat { display:flex; align-items:center; min-width:0; gap:.78rem; padding:.9rem 1rem; border:1px solid var(--adam-border); border-radius:14px; background:var(--adam-card); box-shadow:0 5px 18px rgba(17,24,39,.035); }
 .jvba-stat__icon { display:grid; width:40px; height:40px; flex:0 0 auto; place-items:center; border-radius:11px; color:var(--jvba-accent-text); background:var(--jvba-soft); }
 .jvba-stat__icon svg { width:18px; height:18px; }
-.jvba-stat strong, .jvba-stat span { display:block; }
-.jvba-stat strong { color:var(--adam-text); font-size:1.25rem; letter-spacing:-.03em; line-height:1.1; }
-.jvba-stat span { margin-top:.2rem; color:var(--adam-muted,var(--adam-text-2)); font-size:.72rem; }
+.jvba-stat > div { min-width:0; }
+.jvba-stat > div > strong, .jvba-stat > div > span { display:block; }
+.jvba-stat > div > strong { color:var(--adam-text); font-size:1.25rem; letter-spacing:-.03em; line-height:1.1; }
+.jvba-stat > div > span { margin-top:.2rem; color:var(--adam-muted,var(--adam-text-2)); font-size:.72rem; }
 .jvba-card { margin-bottom:1rem; padding:1rem 1.15rem; border:1px solid var(--adam-border); border-radius:14px; background:var(--adam-card); box-shadow:0 5px 18px rgba(17,24,39,.035); }
 .jvba-card--guide { display:flex; align-items:flex-start; gap:.65rem; border-color:var(--jvba-border); background:linear-gradient(135deg,var(--jvba-soft),var(--adam-card)); }
 .jvba-card--guide svg { width:18px; height:18px; flex:0 0 auto; margin-top:.08rem; color:var(--jvba-accent-text); }

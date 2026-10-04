@@ -210,14 +210,18 @@
   // ───────────────────────── Frame ─────────────────────────
   function refreshFrame() {
     S.frameReady = false;
+    var framePostId = S.postId;
     api('frame_stash', {
       layout: S.layout,
-      post_id: S.postId,
+      post_id: framePostId,
       post_type: (S._pendingPostSettings && S._pendingPostSettings.type) || S.post.type || 'theme',
     }).then(function (res) {
       if (!res.success) { toast('Frame error', true); return; }
-      var url = boot.frameUrl + '&preview_key=' + encodeURIComponent(res.key) + '&_=' + Date.now();
-      $('#jvbFrame').src = url;
+      var frameUrl = new URL(boot.frameUrl, window.location.origin);
+      frameUrl.searchParams.set('post_id', String(framePostId));
+      frameUrl.searchParams.set('preview_key', res.key);
+      frameUrl.searchParams.set('_', String(Date.now()));
+      $('#jvbFrame').src = frameUrl.pathname + frameUrl.search;
     });
   }
 
