@@ -7,8 +7,6 @@ $pdo = $GLOBALS['pdo'] ?? null;
 if (!($pdo instanceof PDO)) {
     jvb_json(['success' => false, 'message' => 'Database not available'], 500);
 }
-jvb_ensure_schema($pdo);
-
 $action = (string)($_GET['action'] ?? '');
 
 // ---------------- iframe canvas frame (GET, HTML document) ----------------

@@ -37,8 +37,9 @@ $packageFiles = [
     'admin/_ui.php', 'admin/ajax.php', 'admin/assets/builder.css', 'admin/assets/builder.js',
     'admin/assets/frontend.css', 'admin/builder.php', 'admin/index.php', 'admin/templates.php', 'admin/tokens.php',
     'assets/builder.css', 'assets/builder.js', 'assets/frame.css', 'assets/frame.js', 'assets/frontend.css', 'assets/frontend.js',
+    'migrations/0001-create-builder-tables.sql',
     'public/render.php', 'public/starters.php',
-    'tests/layout_status_contract.php', 'tests/security_contract.php',
+    'tests/layout_status_contract.php', 'tests/schema_contract.php', 'tests/security_contract.php',
 ];
 $files = [];
 foreach ($packageFiles as $relative) {

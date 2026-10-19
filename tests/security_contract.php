@@ -21,7 +21,7 @@ try {
 $plugin = (string)file_get_contents($root . '/plugin.php');
 
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.148', 'manifest requires the shared content-list Core release');
-$check(($manifest['version'] ?? null) === '3.3.5' && str_contains($plugin, "const JVB_VERSION = '3.3.5'"), 'manifest and runtime declare the 3.3.5 candidate');
+$check(($manifest['version'] ?? null) === '3.3.6' && str_contains($plugin, "const JVB_VERSION = '3.3.6'"), 'manifest and runtime declare the 3.3.6 candidate');
 $permissionKeys = array_column($manifest['permissions'] ?? [], 'key');
 sort($permissionKeys);
 $expectedKeys = [
@@ -56,6 +56,7 @@ $check(str_contains($plugin, "'core.' . \$resource . '.' . \$action"), 'content 
 $check(str_contains($plugin, 'core.pages.unfiltered_html') && str_contains($plugin, 'core.posts.unfiltered_html'), 'restricted elements use Core unfiltered HTML permissions');
 $check(str_contains($plugin, 'jvb_migrate_legacy_permissions'), 'legacy administrator action grants migrate once');
 $check(!str_contains($plugin, 'jvb_migrate_v1($pdo, $postId)'), 'public rendering performs no implicit layout migration');
+$check(!str_contains($plugin, 'CREATE TABLE') && !str_contains($plugin, 'jvb_ensure_schema'), 'request bootstrap performs no schema migration');
 $check(str_contains($plugin, 'function jvb_layout_statuses(')
     && str_contains($plugin, 'SELECT post_id, status FROM jvb_layouts')
     && !str_contains($plugin, 'function jvb_layout_statuses(PDO $pdo, array $postIds): array {\n    $row = jvb_get_layout_row'),

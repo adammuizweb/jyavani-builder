@@ -9,8 +9,6 @@ require_once __DIR__ . '/_ui.php';
 $pdo = $GLOBALS['pdo'] ?? null;
 if (!($pdo instanceof PDO)) { echo '<p>Database not available.</p>'; return; }
 
-jvb_ensure_schema($pdo);
-
 [$uid] = adiwira_require_permission($pdo, 'plugin.jyavani-builder.workspace.access', false);
 $role = function_exists('current_user_role') ? current_user_role($pdo) : null;
 $canManageAny = user_can($pdo, $uid, 'plugin.jyavani-builder.content.manage-any');

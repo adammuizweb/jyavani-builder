@@ -2,7 +2,7 @@
 
 Visual drag-and-drop builder for [Jyavani CMS](https://github.com/adammuizweb/jyavani). Works with articles, pages, and themes.
 
-![Version](https://img.shields.io/badge/version-3.3.5-blue)
+![Version](https://img.shields.io/badge/version-3.3.6-blue)
 ![PHP](https://img.shields.io/badge/PHP-%3E%3D8.1-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -34,12 +34,9 @@ Visual drag-and-drop builder for [Jyavani CMS](https://github.com/adammuizweb/jy
 2. Upload via **Dashboard → Plugins → Upload Plugin**
 3. Activate — the "Jy Builder" menu appears under Pages
 
-Or manually:
-
-```bash
-cd /path/to/jyavani/plugins/
-unzip jyavani-builder.zip
-```
+Manual extraction is not supported. Install through the Plugin Manager so Core
+can run database migrations and publish the declared static assets before the
+plugin becomes active.
 
 ## Usage
 

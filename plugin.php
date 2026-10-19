@@ -1,11 +1,11 @@
 <?php
-// /plugins/jyavani-builder/plugin.php — Jy Builder v3.3.5
+// /plugins/jyavani-builder/plugin.php — Jy Builder v3.3.6
 declare(strict_types=1);
 
 // Loaded on every request (admin + frontend) via plugin_load_active(). No context guard here —
 // guards belong in the admin page files.
 
-const JVB_VERSION = '3.3.5';
+const JVB_VERSION = '3.3.6';
 const JVB_LAYOUT_VERSION = 2;
 const JVB_SETTINGS_TOKENS_KEY = 'jvb_design_tokens';
 const JVB_DYNAMIC_ACCESS_MIGRATED_KEY = 'jvb_dynamic_access_migrated';
@@ -14,53 +14,6 @@ const JVB_MAX_REVISIONS = 20;
 // Breakpoints (documented; tablet ≤ 1024px, mobile ≤ 767px)
 const JVB_BP_TABLET = 1024;
 const JVB_BP_MOBILE = 767;
-
-// ---------------- Schema ----------------
-
-function jvb_ensure_schema(PDO $pdo): void {
-    try {
-        $pdo->exec("
-        CREATE TABLE IF NOT EXISTS `jvb_layouts` (
-            `post_id` int(10) unsigned NOT NULL,
-            `status` varchar(10) NOT NULL DEFAULT 'draft',
-            `draft_json` longtext DEFAULT NULL,
-            `published_json` longtext DEFAULT NULL,
-            `published_at` datetime DEFAULT NULL,
-            `updated_by` int(10) unsigned DEFAULT NULL,
-            `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-            PRIMARY KEY (`post_id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
-        $pdo->exec("
-        CREATE TABLE IF NOT EXISTS `jvb_revisions` (
-            `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            `post_id` int(10) unsigned NOT NULL,
-            `layout_json` longtext DEFAULT NULL,
-            `note` varchar(120) NOT NULL DEFAULT '',
-            `created_by` int(10) unsigned DEFAULT NULL,
-            `created_at` datetime NOT NULL DEFAULT current_timestamp(),
-            PRIMARY KEY (`id`),
-            KEY `post_id` (`post_id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
-        $pdo->exec("
-        CREATE TABLE IF NOT EXISTS `jvb_templates` (
-            `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            `title` varchar(191) NOT NULL,
-            `type` varchar(20) NOT NULL DEFAULT 'section',
-            `layout_json` longtext DEFAULT NULL,
-            `is_starter` tinyint(1) NOT NULL DEFAULT 0,
-            `created_by` int(10) unsigned DEFAULT NULL,
-            `created_at` datetime NOT NULL DEFAULT current_timestamp(),
-            `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-            PRIMARY KEY (`id`),
-            KEY `type` (`type`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
-    } catch (Throwable $e) {
-        error_log('[jyavani-builder] Could not initialize schema: ' . $e->getMessage());
-    }
-}
 
 // ---------------- Layout storage ----------------
 
@@ -85,13 +38,33 @@ function jvb_normalize_layout($raw): array {
 }
 
 // Raw layouts row for a post (static-cached per request).
+function jvb_is_missing_layout_schema(PDOException $error): bool {
+    $state = is_array($error->errorInfo ?? null)
+        ? (string)($error->errorInfo[0] ?? '')
+        : (string)$error->getCode();
+    if ($state === '42S02') return true;
+
+    $message = strtolower($error->getMessage());
+    return str_contains($message, 'no such table') && str_contains($message, 'jvb_layouts');
+}
+
 function jvb_get_layout_row(PDO $pdo, int $postId): ?array {
     if (!isset($GLOBALS['_jvb_row_cache'])) $GLOBALS['_jvb_row_cache'] = [];
     $cache = &$GLOBALS['_jvb_row_cache'];
     if (array_key_exists($postId, $cache)) return $cache[$postId];
-    $st = $pdo->prepare('SELECT * FROM `jvb_layouts` WHERE post_id = ? LIMIT 1');
-    $st->execute([$postId]);
-    $row = $st->fetch(PDO::FETCH_ASSOC);
+    try {
+        $st = $pdo->prepare('SELECT * FROM `jvb_layouts` WHERE post_id = ? LIMIT 1');
+        $st->execute([$postId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+    } catch (PDOException $error) {
+        if (!jvb_is_missing_layout_schema($error)) throw $error;
+        static $logged = false;
+        if (!$logged) {
+            error_log('[jyavani-builder] Layout schema is unavailable; serving stored post content.');
+            $logged = true;
+        }
+        return $cache[$postId] = null;
+    }
     $cache[$postId] = is_array($row) ? $row : null;
     return $cache[$postId];
 }
@@ -780,7 +753,6 @@ add_action('admin_init', function (): void {
         $uid = function_exists('current_user_id') ? (int)current_user_id() : 0;
         if ($uid <= 0 || !function_exists('user_can') || !user_can($pdo, $uid, 'plugin.jyavani-builder.workspace.access')) return;
         jvb_migrate_legacy_permissions($pdo);
-        jvb_ensure_schema($pdo);
         jvb_seed_starter_templates($pdo);
     }
 });
