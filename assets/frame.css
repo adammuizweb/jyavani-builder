@@ -13,6 +13,36 @@ html.jvb-frame-document body > :not(#site-main):not(script) {
 }
 html.jvb-frame-document body > :not(#site-main):not(script) * { pointer-events: none !important; }
 
+/* The canvas owns Builder structure. Theme selectors may style a Builder
+   node with a custom class, but must not replace the row/column contract. */
+html.jvb-frame-document .jvb-section--full,
+html.jvb-frame-document .jvb-section--stretch {
+  left: auto;
+  right: auto;
+  width: 100%;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+html.jvb-frame-document .jvb-row[data-jvb] {
+  display: flex !important;
+  grid-template-columns: none !important;
+}
+html.jvb-frame-document .jvb-row[data-jvb] > .jvb-col[data-jvb] {
+  flex: 1 1 0;
+  min-width: 0;
+}
+/* Device buttons describe the preview mode. Do not let the iframe's narrow
+   workspace width activate the public mobile column rule in desktop mode. */
+html.jvb-frame-document body.jvb-frame--desktop .jvb-row[data-jvb] > .jvb-col[data-jvb] {
+  flex-basis: 0 !important;
+  flex-shrink: 1 !important;
+  width: auto !important;
+}
+html.jvb-frame-document body.jvb-frame--desktop .jvb-row[data-jvb] {
+  flex-direction: row !important;
+}
+
 /* Disable real navigation/forms inside the canvas */
 .jvb-frame a, .jvb-frame button, .jvb-frame summary, .jvb-frame input,
 .jvb-frame .jvb-video--facade, .jvb-frame [data-jvb-lightbox] { pointer-events: none; }

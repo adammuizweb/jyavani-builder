@@ -367,9 +367,11 @@ function jvb_node_css(array $s, string $kind): array {
             $r .= jvb_css_spacing($s['spacing']['padding'] ?? ($s['padding'] ?? null), 'padding', $dev);
         }
         $r .= jvb_css_spacing($s['spacing']['margin'] ?? ($s['margin'] ?? null), 'margin', $dev);
-        // alignment
+        // Row alignment controls the flex cross-axis, not text alignment.
+        // Text alignment belongs to columns and elements, where the Builder
+        // exposes it as a style setting.
         $al = jvb_dev($s['align'] ?? null, $dev);
-        if ($al !== null && in_array($al, ['left', 'center', 'right', 'justify'], true)) $r .= 'text-align:' . $al . ';';
+        if ($kind !== 'row' && $al !== null && in_array($al, ['left', 'center', 'right', 'justify'], true)) $r .= 'text-align:' . $al . ';';
         // typography
         $r .= jvb_css_typography($s['typography'] ?? null, $dev);
         // width (elements)
@@ -410,7 +412,9 @@ function jvb_column_css(array $s, string $sel): string {
         if ($w === null || !is_numeric($w)) continue;
         // flex-grow ratio: distributes row width proportionally after the flex
         // gap is subtracted — width% would overflow the row and wrap columns.
-        $rule = $sel . '{flex-grow:' . (float)$w . ';}';
+        // Keep the saved Builder ratio authoritative when a theme adds a
+        // shorthand flex rule to a custom column class.
+        $rule = $sel . '{flex-grow:' . (float)$w . '!important;}';
         if ($dev === 't') $out .= '@media(max-width:' . JVB_BP_TABLET . 'px){' . $rule . '}';
         elseif ($dev === 'm') $out .= '@media(max-width:' . JVB_BP_MOBILE . 'px){' . $rule . '}';
         else $out .= $rule;
