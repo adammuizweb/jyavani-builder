@@ -12,7 +12,7 @@
     layout: { v: 2, settings: { custom_css: '' }, sections: [] },
     status: 'none',
     registry: {},     // type → definition
-    icons: [], iconSvgs: {}, tokens: {}, forms: [], categories: [], role: 'editor',
+    icons: [], iconSvgs: {}, iconPacks: [], tokens: {}, forms: [], categories: [], presets: [], role: 'editor',
     selected: null,   // { kind: 'section'|'col'|'element', id }
     device: 'desktop',
     dirty: false, saving: false, lastSaved: '',
@@ -30,6 +30,13 @@
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  function rememberPresets(items) {
+    (items || []).forEach(function (preset) {
+      var index = S.presets.findIndex(function (known) { return String(known.id) === String(preset.id); });
+      if (index >= 0) S.presets[index] = preset;
+      else S.presets.push(preset);
+    });
+  }
 
   function toast(msg, type) {
     // type: 'success'|'warning'|'info'|'error' (default 'info')
@@ -901,24 +908,45 @@
 
   FR.iconpicker = function (field, node) {
     var wrap = document.createElement('div');
+    var packKey = field.pack_key || 'icon_pack';
+    var curPack = String((node.settings || {})[packKey] || 'core');
     var cur = String((node.settings || {})[field.key] || 'star');
+    var packSelect = document.createElement('select');
+    packSelect.className = 'jvb-icon-pack-select';
     var preview = document.createElement('div');
     preview.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px';
-    function drawPreview() {
-      preview.innerHTML = (S.iconSvgs[cur] || '') + '<span style="font-size:12px;color:#64748b">' + esc(cur) + '</span>';
+
+    function activePack() {
+      return S.iconPacks.find(function (pack) { return pack.id === curPack; })
+        || S.iconPacks[0]
+        || { id: 'core', label: 'Core / Lucide', icons: S.icons, sprite: '' };
     }
-    drawPreview();
+
+    function iconMarkup(pack, name) {
+      if (pack.id === 'core') {
+        return S.iconSvgs[name] || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle></svg>';
+      }
+      if (!pack.sprite || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) return '';
+      return '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><use href="'
+        + esc(pack.sprite) + '#jvb-hero-' + esc(name) + '"></use></svg>';
+    }
+
+    function drawPreview() {
+      var pack = activePack();
+      preview.innerHTML = iconMarkup(pack, cur) + '<span style="font-size:12px;color:#64748b">' + esc(cur) + '</span>';
+    }
     var search = document.createElement('input');
     search.type = 'search'; search.placeholder = 'Search icons…';
     var grid = document.createElement('div');
     grid.className = 'jvb-icon-grid';
     function drawGrid(filter) {
       grid.innerHTML = '';
-      S.icons.filter(function (n) { return !filter || n.indexOf(filter) !== -1; }).slice(0, 120).forEach(function (name) {
+      var pack = activePack();
+      (pack.icons || []).filter(function (n) { return !filter || n.indexOf(filter) !== -1; }).forEach(function (name) {
         var b = document.createElement('button');
         b.type = 'button'; b.title = name;
         b.className = name === cur ? 'is-active' : '';
-        b.innerHTML = S.iconSvgs[name] || '';
+        b.innerHTML = iconMarkup(pack, name);
         b.addEventListener('click', function () {
           cur = name; drawPreview();
           $$('button', grid).forEach(function (x) { x.classList.remove('is-active'); });
@@ -928,9 +956,27 @@
         grid.appendChild(b);
       });
     }
+    S.iconPacks.forEach(function (pack) {
+      var option = document.createElement('option');
+      option.value = pack.id; option.textContent = pack.label;
+      if (pack.id === curPack) option.selected = true;
+      packSelect.appendChild(option);
+    });
+    packSelect.addEventListener('change', function () {
+      var pack = S.iconPacks.find(function (item) { return item.id === packSelect.value; });
+      if (!pack) return;
+      curPack = pack.id;
+      if ((pack.icons || []).indexOf(cur) === -1) cur = (pack.icons || [])[0] || '';
+      search.value = '';
+      pushUndo();
+      setSetting(node, packKey, curPack);
+      setSetting(node, field.key, cur);
+      markDirty(true); refreshFrame(); drawPreview(); drawGrid('');
+    });
     search.addEventListener('input', function () { drawGrid(search.value.trim().toLowerCase()); });
+    drawPreview();
     drawGrid('');
-    wrap.appendChild(preview); wrap.appendChild(search); wrap.appendChild(grid);
+    wrap.appendChild(packSelect); wrap.appendChild(preview); wrap.appendChild(search); wrap.appendChild(grid);
     return wrap;
   };
 
@@ -1050,6 +1096,65 @@
       pushUndo(); setSetting(node, field.key, +sel.value); markDirty(true); refreshFrame();
     });
     return sel;
+  };
+
+  FR.presetpicker = function (field, node) {
+    var current = String((node.settings || {})[field.key] || '');
+    var wrap = document.createElement('div');
+    var search = document.createElement('input');
+    search.type = 'search';
+    search.placeholder = 'Search published presets…';
+    var sel = document.createElement('select');
+    var timer = null, request = 0;
+
+    function fill(items) {
+      sel.innerHTML = '';
+      var blank = document.createElement('option');
+      blank.value = ''; blank.textContent = '— Select a published preset —';
+      sel.appendChild(blank);
+      var found = false;
+      (items || []).forEach(function (preset) {
+        var option = document.createElement('option');
+        option.value = String(preset.id);
+        option.textContent = preset.title + ' (' + preset.slug + ')' + (preset.layout ? ' · ' + preset.layout : '');
+        if (current === String(preset.id)) { option.selected = true; found = true; }
+        sel.appendChild(option);
+      });
+      if (current && !found) {
+        var missing = document.createElement('option');
+        missing.value = current; missing.textContent = 'Unavailable preset (ID ' + current + ')';
+        missing.selected = true; sel.appendChild(missing);
+      }
+    }
+
+    fill(S.presets);
+    search.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        var sequence = ++request;
+        api('presets_search', { query: search.value, current_id: current }).then(function (res) {
+          if (sequence !== request || !res.success || !wrap.isConnected) return;
+          rememberPresets(res.presets || []);
+          fill(res.presets || []);
+        });
+      }, 200);
+    });
+    sel.addEventListener('change', function () {
+      var selected = S.presets.find(function (preset) { return String(preset.id) === sel.value; });
+      pushUndo();
+      setSetting(node, field.key, sel.value ? parseInt(sel.value, 10) : 0);
+      setSetting(node, 'preset_slug', selected ? selected.slug : '');
+      markDirty(true); refreshFrame(); renderPanel();
+    });
+    wrap.appendChild(search);
+    wrap.appendChild(sel);
+    if (!S.presets.length && !current) {
+      var hint = document.createElement('div');
+      hint.className = 'jvb-device-note';
+      hint.textContent = 'No published Content Presets found. Search or create one in Shortcodes → Presets.';
+      wrap.appendChild(hint);
+    }
+    return wrap;
   };
 
   function renderField(field, node) {
@@ -1649,6 +1754,23 @@
   }
 
   // ───────────────────────── Export / Import layout JSON ─────────────────────────
+  function eachPresetElement(layout, callback) {
+    function walk(value) {
+      if (!value || typeof value !== 'object') return;
+      if (!Array.isArray(value) && value.type === 'preset_collection') callback(value);
+      Object.keys(value).forEach(function (key) { walk(value[key]); });
+    }
+    walk(layout);
+  }
+
+  function refreshPresetIdentities(layout) {
+    eachPresetElement(layout, function (element) {
+      var settings = element.settings || (element.settings = {});
+      var match = S.presets.find(function (preset) { return String(preset.id) === String(settings.preset_id || ''); });
+      if (match) settings.preset_slug = match.slug;
+    });
+  }
+
   function doExport() {
     var post = (boot && boot.post) || {};
     var data = {
@@ -1688,14 +1810,54 @@
     for (var i = 0; i < layout.sections.length; i++) {
       if (!Array.isArray(layout.sections[i].rows)) { toast('Invalid section #' + (i + 1) + ' (missing rows)', true); return; }
     }
-    pushUndo();
-    S.layout = migrateV2toV3(layout);
-    S.selected = null;
-    markDirty(true);
-    closeImport();
-    refreshFrame();
-    renderPanel();
-    toast('Layout imported to draft — review, then Publish when ready', 'success');
+    var slugs = {}, invalidIdentity = false;
+    eachPresetElement(layout, function (element) {
+      var settings = element.settings || {};
+      var presetId = parseInt(settings.preset_id || 0, 10);
+      var slug = String(settings.preset_slug || '').trim().toLowerCase();
+      if (presetId > 0 && !slug) invalidIdentity = true;
+      if (slug) slugs[slug] = true;
+    });
+    if (invalidIdentity) {
+      toast('Imported Published Preset blocks need a portable preset slug.', true);
+      return;
+    }
+    var requestedSlugs = Object.keys(slugs);
+    if (requestedSlugs.length > 200) { toast('Import contains too many Content Presets.', true); return; }
+
+    function finishImport(presets) {
+      rememberPresets(presets);
+      var bySlug = {};
+      (presets || []).forEach(function (preset) { bySlug[preset.slug] = preset; });
+      var missing = [];
+      eachPresetElement(layout, function (element) {
+        var settings = element.settings || (element.settings = {});
+        var slug = String(settings.preset_slug || '').trim().toLowerCase();
+        if (!slug) return;
+        var preset = bySlug[slug];
+        if (!preset) { missing.push(slug); return; }
+        settings.preset_id = preset.id;
+        settings.preset_slug = preset.slug;
+      });
+      if (missing.length) {
+        toast('Missing published Content Preset: ' + missing.slice(0, 3).join(', '), true);
+        return;
+      }
+      pushUndo();
+      S.layout = migrateV2toV3(layout);
+      S.selected = null;
+      markDirty(true);
+      closeImport();
+      refreshFrame();
+      renderPanel();
+      toast('Layout imported to draft — review, then Publish when ready', 'success');
+    }
+
+    if (!requestedSlugs.length) { finishImport([]); return; }
+    api('presets_resolve', { slugs: requestedSlugs }).then(function (res) {
+      if (!res.success) { toast(res.message || 'Could not resolve Content Presets', true); return; }
+      finishImport(res.presets || []);
+    });
   }
 
   // ───────────────────────── Palette + sections tab ─────────────────────────
@@ -2398,7 +2560,7 @@
 
     Promise.all([
       loadPromise,
-      api('elements'),
+      api('elements', { post_id: S.postId }),
     ]).then(function (results) {
       var load = results[0], els = results[1];
       if (!load.success) { toast(load.message || 'Failed to load post', true); return; }
@@ -2414,10 +2576,13 @@
         (els.elements || []).forEach(function (def) { if (def.type) S.registry[def.type] = def; });
         S.icons = els.icons || [];
         S.iconSvgs = els.icon_svgs || {};
+        S.iconPacks = els.icon_packs || [{ id: 'core', label: 'Core / Lucide', icons: S.icons, sprite: '' }];
         S.uiIcons = els.ui_icons || {};
         S.tokens = els.tokens || {};
         S.forms = els.forms || [];
         S.categories = els.categories || [];
+        S.presets = els.presets || [];
+        refreshPresetIdentities(S.layout);
         S.role = els.role || 'editor';
       }
       buildPalette();

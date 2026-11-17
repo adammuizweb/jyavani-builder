@@ -71,9 +71,9 @@ function jvb_element_types(): array {
         ],
         'icon' => [
             'label' => 'Icon', 'group' => 'basic', 'icon' => 'star',
-            'defaults' => ['name' => 'star', 'size' => 32, 'color' => 'primary', 'link' => '', 'align' => ['d' => '']],
+            'defaults' => ['icon_pack' => 'core', 'name' => 'star', 'size' => 32, 'color' => 'primary', 'link' => '', 'align' => ['d' => '']],
             'fields' => [
-                ['key' => 'name', 'label' => 'Icon', 'type' => 'iconpicker'],
+                ['key' => 'name', 'label' => 'Icon', 'type' => 'iconpicker', 'pack_key' => 'icon_pack'],
                 ['key' => 'size', 'label' => 'Size (px)', 'type' => 'number'],
                 ['key' => 'color', 'label' => 'Color', 'type' => 'color', 'token' => true],
                 ['key' => 'link', 'label' => 'Link URL', 'type' => 'text'],
@@ -246,9 +246,9 @@ function jvb_element_types(): array {
         ],
         'iconbox' => [
             'label' => 'Icon Box', 'group' => 'content', 'icon' => 'box',
-            'defaults' => ['icon' => 'zap', 'title' => 'Feature', 'text' => 'Describe this feature briefly.', 'url' => '', 'layout' => 'top', 'color' => 'primary', 'align' => ['d' => '']],
+            'defaults' => ['icon_pack' => 'core', 'icon' => 'zap', 'title' => 'Feature', 'text' => 'Describe this feature briefly.', 'url' => '', 'layout' => 'top', 'color' => 'primary', 'align' => ['d' => '']],
             'fields' => [
-                ['key' => 'icon', 'label' => 'Icon', 'type' => 'iconpicker'],
+                ['key' => 'icon', 'label' => 'Icon', 'type' => 'iconpicker', 'pack_key' => 'icon_pack'],
                 ['key' => 'title', 'label' => 'Title', 'type' => 'text'],
                 ['key' => 'text', 'label' => 'Text', 'type' => 'textarea'],
                 ['key' => 'url', 'label' => 'Link URL (optional)', 'type' => 'text'],
@@ -268,6 +268,23 @@ function jvb_element_types(): array {
                 ['key' => 'show_image', 'label' => 'Show thumbnail', 'type' => 'toggle'],
                 ['key' => 'show_excerpt', 'label' => 'Show excerpt', 'type' => 'toggle'],
                 ['key' => 'color', 'label' => 'Accent Color', 'type' => 'color', 'token' => true],
+            ],
+        ],
+        'preset_collection' => [
+            'label' => 'Published Preset', 'group' => 'dynamic', 'icon' => 'grid-3x3',
+            'defaults' => [
+                'preset_id' => 0, 'preset_slug' => '', 'layout' => '', 'show_header' => true,
+                'title' => '', 'summary' => '', 'more_text' => '', 'more_url' => '',
+            ],
+            'fields' => [
+                ['key' => 'preset_id', 'label' => 'Content Preset', 'type' => 'presetpicker'],
+                ['key' => 'layout', 'label' => 'Block Style', 'type' => 'select', 'options' => jvb_preset_layout_options()],
+                ['key' => 'show_header', 'label' => 'Show section header', 'type' => 'toggle'],
+                ['key' => 'title', 'label' => 'Section Title', 'type' => 'text', 'show_if' => ['show_header' => true]],
+                ['key' => 'summary', 'label' => 'Summary', 'type' => 'textarea', 'show_if' => ['show_header' => true]],
+                ['key' => 'more_text', 'label' => 'More Link Label', 'type' => 'text', 'show_if' => ['show_header' => true]],
+                ['key' => 'more_url', 'label' => 'More Link URL', 'type' => 'text', 'show_if' => ['show_header' => true]],
+                ['key' => 'margin', 'label' => 'Margin', 'type' => 'spacing4', 'devices' => true],
             ],
         ],
         'form' => [
@@ -516,6 +533,61 @@ function jvb_available_icons(): array {
     return array_values(array_unique($names));
 }
 
+// Heroicons Outline is bundled as a trusted, generated SVG sprite. Layouts
+// persist only the pack and icon identifiers, never arbitrary SVG markup.
+function jvb_heroicon_symbols(): array {
+    static $symbols = null;
+    if ($symbols !== null) return $symbols;
+    $symbols = [];
+    $file = dirname(__DIR__) . '/assets/icon-packs/heroicons-outline.svg';
+    if (!is_file($file)) return $symbols;
+    $svg = (string)file_get_contents($file);
+    if (preg_match_all('~<symbol id="jvb-hero-([a-z0-9]+(?:-[a-z0-9]+)*)"[^>]*>(.*?)</symbol>~s', $svg, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $match) $symbols[$match[1]] = $match[2];
+    }
+    ksort($symbols, SORT_STRING);
+    return $symbols;
+}
+
+function jvb_available_heroicons(): array {
+    return array_keys(jvb_heroicon_symbols());
+}
+
+function jvb_icon_pack_id(mixed $pack): string {
+    return $pack === 'heroicons' ? 'heroicons' : 'core';
+}
+
+function jvb_content_icon(string $pack, string $name, int $size = 24): string {
+    $pack = jvb_icon_pack_id($pack);
+    $size = max(8, min(256, $size));
+    if ($pack === 'core') return jvb_lucide($name, $size);
+
+    $symbols = jvb_heroicon_symbols();
+    $name = strtolower(trim($name));
+    if (!isset($symbols[$name])) $name = 'star';
+    if (!isset($symbols[$name])) return jvb_lucide('circle', $size);
+    return '<svg viewBox="0 0 24 24" width="' . $size . '" height="' . $size
+        . '" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">'
+        . $symbols[$name] . '</svg>';
+}
+
+function jvb_icon_pack_catalog(): array {
+    return [
+        [
+            'id' => 'core',
+            'label' => 'Core / Lucide',
+            'icons' => jvb_available_icons(),
+            'sprite' => '',
+        ],
+        [
+            'id' => 'heroicons',
+            'label' => 'Jy Builder / Heroicons Outline',
+            'icons' => jvb_available_heroicons(),
+            'sprite' => function_exists('jvb_asset_url') ? jvb_asset_url('heroicons-outline.svg') : '',
+        ],
+    ];
+}
+
 // ---------------- Video URL parsing ----------------
 
 function jvb_video_embed(string $url): ?array {
@@ -541,6 +613,244 @@ function jvb_expand_shortcodes(string $html, PDO $pdo): string {
     if (function_exists('private_file_shortcode_expand')) $html = private_file_shortcode_expand($html, $pdo);
     if (function_exists('video_shortcode_expand')) $html = video_shortcode_expand($html, $pdo);
     return $html;
+}
+
+function jvb_preset_layout_options(): array {
+    return [
+        '' => 'Use Preset Layout',
+        'cards' => 'Cards',
+        'grid' => 'Grid',
+        'list' => 'Editorial List',
+        'mini' => 'Compact List',
+        'sliderpage' => 'Slider',
+    ];
+}
+
+function jvb_preset_picker_rows(PDO $pdo, array $rows): array {
+    $presets = [];
+    foreach ($rows as $row) {
+        $slug = strtolower(trim((string)($row['slug'] ?? '')));
+        $valid = function_exists('shortcode_preset_slug_is_valid')
+            ? shortcode_preset_slug_is_valid($slug)
+            : ($slug !== '' && preg_match('/\A[a-z0-9_-]+\z/', $slug) === 1);
+        if (!$valid) continue;
+
+        try {
+            $config = function_exists('shortcode_preset_config_loaded')
+                ? shortcode_preset_config_loaded((string)($row['meta'] ?? ''), $row, $pdo, ['scope' => 'jyavani_builder_picker'])
+                : json_decode((string)($row['meta'] ?? ''), true);
+        } catch (Throwable $error) {
+            error_log('[jyavani-builder] Could not load preset ' . $slug . ' for the picker: ' . $error->getMessage());
+            $config = [];
+        }
+        $presets[(int)($row['id'] ?? 0)] = [
+            'id' => (int)($row['id'] ?? 0),
+            'title' => (string)($row['title'] ?? $slug),
+            'slug' => $slug,
+            'layout' => is_array($config) ? trim((string)($config['layout'] ?? '')) : '',
+        ];
+    }
+    return $presets;
+}
+
+function jvb_published_presets(PDO $pdo, string $query = '', int $limit = 100, array $includeIds = []): array {
+    $query = substr(trim($query), 0, 191);
+    $limit = max(1, min(100, $limit));
+    $params = [];
+    $sql = "SELECT id, title, slug, meta FROM posts WHERE type = 'sc_preset' AND status = 'published' AND is_deleted = 0";
+    if ($query !== '') {
+        $sql .= " AND (title LIKE ? ESCAPE '!' OR slug LIKE ? ESCAPE '!')";
+        $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $query);
+        $params[] = '%' . $escaped . '%';
+        $params[] = '%' . $escaped . '%';
+    }
+    $sql .= " ORDER BY title ASC, id ASC LIMIT {$limit}";
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $ids = [];
+        foreach ($includeIds as $id) {
+            $validId = filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($validId !== false) $ids[(int)$validId] = true;
+            if (count($ids) >= 200) break;
+        }
+        if ($ids !== []) {
+            $values = array_keys($ids);
+            $placeholders = implode(',', array_fill(0, count($values), '?'));
+            $included = $pdo->prepare("SELECT id, title, slug, meta FROM posts WHERE id IN ({$placeholders}) AND type = 'sc_preset' AND status = 'published' AND is_deleted = 0");
+            $included->execute($values);
+            $rows = array_merge($rows, $included->fetchAll(PDO::FETCH_ASSOC));
+        }
+    } catch (Throwable $error) {
+        error_log('[jyavani-builder] Could not list published presets: ' . $error->getMessage());
+        return [];
+    }
+
+    $presets = array_values(jvb_preset_picker_rows($pdo, $rows));
+    usort($presets, static fn(array $a, array $b): int => strcasecmp($a['title'], $b['title']) ?: ($a['id'] <=> $b['id']));
+    return $presets;
+}
+
+function jvb_published_presets_by_slugs(PDO $pdo, array $slugs): array {
+    $valid = [];
+    foreach ($slugs as $slug) {
+        if (!is_string($slug)) continue;
+        $slug = strtolower(trim($slug));
+        $isValid = function_exists('shortcode_preset_slug_is_valid')
+            ? shortcode_preset_slug_is_valid($slug)
+            : ($slug !== '' && preg_match('/\A[a-z0-9_-]+\z/', $slug) === 1);
+        if ($isValid) $valid[$slug] = true;
+        if (count($valid) > 200) throw new InvalidArgumentException('Too many Content Presets to resolve.');
+    }
+    if ($valid === []) return [];
+    $values = array_keys($valid);
+    $placeholders = implode(',', array_fill(0, count($values), '?'));
+    $stmt = $pdo->prepare("SELECT id, title, slug, meta FROM posts WHERE slug IN ({$placeholders}) AND type = 'sc_preset' AND status = 'published' AND is_deleted = 0");
+    $stmt->execute($values);
+    return array_values(jvb_preset_picker_rows($pdo, $stmt->fetchAll(PDO::FETCH_ASSOC)));
+}
+
+function jvb_layout_preset_ids(mixed $value): array {
+    $ids = [];
+    $walk = static function (mixed $node) use (&$walk, &$ids): void {
+        if (!is_array($node)) return;
+        if (($node['type'] ?? null) === 'preset_collection') {
+            $settings = is_array($node['settings'] ?? null) ? $node['settings'] : [];
+            $presetId = filter_var($settings['preset_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($presetId !== false) $ids[(int)$presetId] = true;
+        }
+        foreach ($node as $child) {
+            if (is_array($child)) $walk($child);
+        }
+    };
+    $walk($value);
+    $result = array_keys($ids);
+    sort($result, SORT_NUMERIC);
+    return $result;
+}
+
+function jvb_layout_references_preset(mixed $value, int $presetId): bool {
+    return $presetId > 0 && in_array($presetId, jvb_layout_preset_ids($value), true);
+}
+
+function jvb_lock_layout_presets(PDO $pdo, array $layout): array {
+    if (!$pdo->inTransaction()) throw new LogicException('Content Preset validation requires an active transaction.');
+    $ids = jvb_layout_preset_ids($layout);
+    if ($ids === []) return $layout;
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $sql = "SELECT id, slug FROM posts WHERE id IN ({$placeholders}) AND type = 'sc_preset' AND status = 'published' AND is_deleted = 0 ORDER BY id";
+    if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite') $sql .= ' FOR UPDATE';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($ids);
+    $slugs = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $slugs[(int)($row['id'] ?? 0)] = strtolower(trim((string)($row['slug'] ?? '')));
+    }
+    $found = array_keys($slugs);
+    sort($found, SORT_NUMERIC);
+    if ($found !== $ids) throw new RuntimeException('A selected Content Preset is unavailable or no longer published.');
+
+    $bind = static function (array &$node) use (&$bind, $slugs): void {
+        if (($node['type'] ?? null) === 'preset_collection') {
+            if (!isset($node['settings']) || !is_array($node['settings'])) $node['settings'] = [];
+            $presetId = filter_var($node['settings']['preset_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($presetId !== false && isset($slugs[(int)$presetId])) $node['settings']['preset_slug'] = $slugs[(int)$presetId];
+        }
+        foreach ($node as &$child) {
+            if (is_array($child)) $bind($child);
+        }
+        unset($child);
+    };
+    $bind($layout);
+    return $layout;
+}
+
+function jvb_preset_is_referenced(PDO $pdo, int $presetId): bool {
+    if ($presetId <= 0) return false;
+    $numberNeedle = '%"preset_id":' . $presetId . '%';
+    $stringNeedle = '%"preset_id":"' . $presetId . '"%';
+    $queries = [
+        ["SELECT draft_json, published_json FROM jvb_layouts WHERE draft_json LIKE ? OR draft_json LIKE ? OR published_json LIKE ? OR published_json LIKE ?", [$numberNeedle, $stringNeedle, $numberNeedle, $stringNeedle]],
+        ["SELECT layout_json FROM jvb_templates WHERE layout_json LIKE ? OR layout_json LIKE ?", [$numberNeedle, $stringNeedle]],
+        ["SELECT layout_json FROM jvb_revisions WHERE layout_json LIKE ? OR layout_json LIKE ?", [$numberNeedle, $stringNeedle]],
+    ];
+    foreach ($queries as [$sql, $params]) {
+        try {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                foreach ($row as $raw) {
+                    if (!is_string($raw) || $raw === '') continue;
+                    $layout = json_decode($raw, true);
+                    if (is_array($layout) && jvb_layout_references_preset($layout, $presetId)) return true;
+                }
+            }
+        } catch (PDOException $error) {
+            $state = is_array($error->errorInfo ?? null) ? (string)($error->errorInfo[0] ?? '') : (string)$error->getCode();
+            if ($state === '42S02' || str_contains(strtolower($error->getMessage()), 'no such table')) continue;
+            throw $error;
+        }
+    }
+    return false;
+}
+
+function jvb_safe_frontend_url(string $url): string {
+    $url = trim($url);
+    if ($url === '') return '';
+    if ($url[0] === '/' || $url[0] === '#' || $url[0] === '?') return $url;
+    $parts = parse_url($url);
+    $scheme = is_array($parts) ? strtolower((string)($parts['scheme'] ?? '')) : '';
+    return in_array($scheme, ['http', 'https'], true) && filter_var($url, FILTER_VALIDATE_URL) ? $url : '';
+}
+
+function jvb_render_preset_collection(PDO $pdo, array $settings, array $ctx): string {
+    $presetId = filter_var($settings['preset_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    if ($presetId === false) {
+        return !empty($ctx['canvas'])
+            ? '<div class="jvb-preset-collection--empty">Select a published Content Preset.</div>'
+            : '';
+    }
+
+    $layout = trim((string)($settings['layout'] ?? ''));
+    if (!array_key_exists($layout, jvb_preset_layout_options())) $layout = '';
+    $overrides = $layout !== '' ? ['layout' => $layout] : [];
+    if (!empty($ctx['fallback'])) $overrides['pagination'] = '0';
+    $renderContext = [
+        'surface' => 'plugin.jyavani-builder',
+        'post_id' => (int)($ctx['post']['id'] ?? 0),
+        'element_id' => (string)($ctx['element_id'] ?? ''),
+        'canvas' => !empty($ctx['canvas']),
+    ];
+    $html = function_exists('render_shortcode_preset')
+        ? render_shortcode_preset($pdo, (int)$presetId, $overrides, $renderContext)
+        : '';
+    if (trim($html) === '') {
+        return !empty($ctx['canvas'])
+            ? '<div class="jvb-preset-collection--empty">The selected preset is unavailable or returned no content.</div>'
+            : '';
+    }
+
+    $header = '';
+    if (!empty($settings['show_header'])) {
+        $title = trim((string)($settings['title'] ?? ''));
+        $summary = trim((string)($settings['summary'] ?? ''));
+        $moreText = trim((string)($settings['more_text'] ?? ''));
+        $moreUrl = jvb_safe_frontend_url((string)($settings['more_url'] ?? ''));
+        if ($title !== '' || $summary !== '' || ($moreText !== '' && $moreUrl !== '')) {
+            $copy = ($title !== '' ? '<h2 class="jvb-preset-collection__title">' . jvb_e($title) . '</h2>' : '')
+                . ($summary !== '' ? '<p class="jvb-preset-collection__summary">' . jvb_e($summary) . '</p>' : '');
+            $more = $moreText !== '' && $moreUrl !== ''
+                ? '<a class="jvb-preset-collection__more" href="' . jvb_e($moreUrl) . '">' . jvb_e($moreText) . '</a>'
+                : '';
+            $header = '<header class="jvb-preset-collection__head"><div>' . $copy . '</div>' . $more . '</header>';
+        }
+    }
+
+    $layoutClass = $layout !== '' ? ' jvb-preset-collection--' . $layout : '';
+    return '<section class="jvb-preset-collection' . $layoutClass . '" data-preset-id="' . (int)$presetId . '">'
+        . $header . '<div class="jvb-preset-collection__content">' . $html . '</div></section>';
 }
 
 // ---------------- Element renderers ----------------
@@ -592,7 +902,7 @@ function jvb_render_element(PDO $pdo, array $el, array $ctx): string {
         case 'icon': {
             $size = max(8, min(256, (int)($s['size'] ?? 32)));
             $color = jvb_color($s['color'] ?? 'primary') ?: 'var(--jvb-primary)';
-            $svg = jvb_lucide((string)($s['name'] ?? 'star'), $size);
+            $svg = jvb_content_icon((string)($s['icon_pack'] ?? 'core'), (string)($s['name'] ?? 'star'), $size);
             $ico = '<span class="jvb-icon" style="color:' . jvb_e($color) . '">' . $svg . '</span>';
             if (!empty($s['link'])) $ico = '<a href="' . jvb_e($s['link']) . '">' . $ico . '</a>';
             $inner = $ico;
@@ -802,10 +1112,15 @@ function jvb_render_element(PDO $pdo, array $el, array $ctx): string {
         case 'iconbox': {
             $color = jvb_color($s['color'] ?? 'primary') ?: 'var(--jvb-primary)';
             $layout = ($s['layout'] ?? '') === 'left' ? 'left' : 'top';
-            $body = '<span class="jvb-iconbox__icon" style="color:' . jvb_e($color) . '">' . jvb_lucide((string)($s['icon'] ?? 'zap'), 32) . '</span>'
+            $body = '<span class="jvb-iconbox__icon" style="color:' . jvb_e($color) . '">' . jvb_content_icon((string)($s['icon_pack'] ?? 'core'), (string)($s['icon'] ?? 'zap'), 32) . '</span>'
                 . '<div class="jvb-iconbox__body"><h3 class="jvb-iconbox__title">' . jvb_e($s['title'] ?? '') . '</h3><p>' . jvb_e($s['text'] ?? '') . '</p></div>';
             $inner = '<div class="jvb-iconbox jvb-iconbox--' . $layout . '">' . $body . '</div>';
             if (!empty($s['url'])) $inner = '<a class="jvb-iconbox-link" href="' . jvb_e($s['url']) . '">' . $inner . '</a>';
+            break;
+        }
+        case 'preset_collection': {
+            $ctx['element_id'] = $id;
+            $inner = jvb_render_preset_collection($pdo, $s, $ctx);
             break;
         }
         case 'posts': {
@@ -1007,7 +1322,12 @@ function jvb_render_layout(PDO $pdo, array $layout, array $post = [], array $opt
     if ($tokensCache === null) $tokensCache = jvb_get_tokens($pdo);
     $tokens = $tokensCache;
 
-    $ctx = ['tokens' => $tokens, 'post' => $post, 'canvas' => !empty($opts['canvas'])];
+    $ctx = [
+        'tokens' => $tokens,
+        'post' => $post,
+        'canvas' => !empty($opts['canvas']),
+        'fallback' => !empty($opts['inline_css']),
+    ];
 
     $sections = '';
     foreach ((array)($layout['sections'] ?? []) as $sec) {

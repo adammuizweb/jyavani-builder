@@ -299,7 +299,8 @@
 .jvb-drag-ghost svg { width: 16px; height: 16px; color: #2563eb; }
 .jvb-ic { display: inline-block; vertical-align: -2px; }
 
-.jvb-icon-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; max-height: 220px; overflow-y: auto; margin-top: 6px; }
+.jvb-icon-pack-select { width:100%; margin-bottom:8px; }
+.jvb-icon-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; max-height: 260px; overflow-y: auto; margin-top: 6px; }
 .jvb-icon-grid button {
   border: 1px solid #e2e8f0; background: #fff; border-radius: 6px; padding: 6px;
   cursor: pointer; color: #475569; display: flex; align-items: center; justify-content: center;

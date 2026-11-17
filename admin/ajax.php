@@ -224,37 +224,58 @@ switch ($action) {
     case 'save_draft': {
         $postId = (int)($in['post_id'] ?? 0);
         $layout = jvb_normalize_layout($in['layout'] ?? null);
+        $newPost = $postId <= 0;
+        $ownsTransaction = $newPost && !$pdo->inTransaction();
         // Standalone mode: create post on first save
-        if ($postId <= 0) {
+        if ($newPost) {
             $postType = in_array($in['post_type'] ?? '', ['page', 'article', 'theme'], true) ? $in['post_type'] : 'theme';
             $title = trim((string)($in['title'] ?? ''));
             if ($title === '') $title = 'Untitled ' . ucfirst($postType);
             jvb_require_content_action($pdo, $uid, ['type' => $postType, 'created_by' => $uid], 'create');
             if (jvb_layout_has_restricted_elements($layout) && !jvb_user_can_restricted_elements($pdo, $uid, ['type' => $postType, 'created_by' => $uid])) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
-            $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $title));
-            $slug = trim($slug, '-') ?: 'untitled-' . bin2hex(random_bytes(3));
-            $baseSlug = $slug; $si = 1;
-            while (true) {
-                $chk = $pdo->prepare('SELECT id FROM posts WHERE slug = ? AND is_deleted = 0 LIMIT 1');
-                $chk->execute([$slug]);
-                if (!$chk->fetchColumn()) break;
-                $slug = $baseSlug . '-' . (++$si);
-            }
-            $pdo->prepare('INSERT INTO posts (title, slug, type, status, content, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())')
-                ->execute([$title, $slug, $postType, 'draft', '', $uid]);
-            $postId = (int)$pdo->lastInsertId();
         }
-        $post = $getPost($postId);
-        if ($post === null) jvb_json(['success' => false, 'message' => 'Post not found'], 404);
-        if (jvb_layout_has_restricted_elements($layout) && !jvb_user_can_restricted_elements($pdo, $uid, $post)) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
-        jvb_save_draft($pdo, (int)$post['id'], $layout, $uid);
-        jvb_json(['success' => true, 'post_id' => (int)$post['id'], 'saved_at' => date('Y-m-d H:i:s')]);
+        try {
+            if ($ownsTransaction) $pdo->beginTransaction();
+            if ($newPost) {
+                $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $title));
+                $slug = trim($slug, '-') ?: 'untitled-' . bin2hex(random_bytes(3));
+                $baseSlug = $slug; $si = 1;
+                while (true) {
+                    $chk = $pdo->prepare('SELECT id FROM posts WHERE slug = ? AND is_deleted = 0 LIMIT 1');
+                    $chk->execute([$slug]);
+                    if (!$chk->fetchColumn()) break;
+                    $slug = $baseSlug . '-' . (++$si);
+                }
+                $pdo->prepare('INSERT INTO posts (title, slug, type, status, content, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())')
+                    ->execute([$title, $slug, $postType, 'draft', '', $uid]);
+                $postId = (int)$pdo->lastInsertId();
+                $post = ['id' => $postId, 'title' => $title, 'slug' => $slug, 'type' => $postType, 'status' => 'draft', 'created_by' => $uid];
+            } else {
+                $post = $getPost($postId);
+                if ($post === null) jvb_json(['success' => false, 'message' => 'Post not found'], 404);
+            }
+            if (jvb_layout_has_restricted_elements($layout) && !jvb_user_can_restricted_elements($pdo, $uid, $post)) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
+            jvb_save_draft($pdo, (int)$post['id'], $layout, $uid);
+            if ($ownsTransaction) $pdo->commit();
+            jvb_json(['success' => true, 'post_id' => (int)$post['id'], 'saved_at' => date('Y-m-d H:i:s')]);
+        } catch (Throwable $error) {
+            if ($ownsTransaction && $pdo->inTransaction()) $pdo->rollBack();
+            error_log('[jyavani-builder] Draft save failed: ' . $error->getMessage());
+            $validationError = $error instanceof RuntimeException
+                && str_starts_with($error->getMessage(), 'A selected Content Preset');
+            jvb_json([
+                'success' => false,
+                'message' => $validationError ? $error->getMessage() : 'Draft save failed',
+            ], $validationError ? 422 : 500);
+        }
     }
 
     case 'publish': {
         $postId = (int)($in['post_id'] ?? 0);
+        $newPost = $postId <= 0;
+        $ownsTransaction = $newPost && !$pdo->inTransaction();
         // Standalone mode: create post first if needed
-        if ($postId <= 0) {
+        if ($newPost) {
             $postType = in_array($in['post_type'] ?? '', ['page', 'article', 'theme'], true) ? $in['post_type'] : 'theme';
             $title = trim((string)($in['title'] ?? ''));
             if ($title === '') $title = 'Untitled ' . ucfirst($postType);
@@ -263,52 +284,61 @@ switch ($action) {
             if (!isset($in['layout'])) jvb_json(['success' => false, 'message' => 'Layout required'], 400);
             $newLayout = jvb_normalize_layout($in['layout']);
             if (jvb_layout_has_restricted_elements($newLayout) && !jvb_user_can_restricted_elements($pdo, $uid, ['type' => $postType, 'created_by' => $uid])) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
-            $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $title));
-            $slug = trim($slug, '-') ?: 'untitled-' . bin2hex(random_bytes(3));
-            $baseSlug = $slug; $si = 1;
-            while (true) {
-                $chk = $pdo->prepare('SELECT id FROM posts WHERE slug = ? AND is_deleted = 0 LIMIT 1');
-                $chk->execute([$slug]);
-                if (!$chk->fetchColumn()) break;
-                $slug = $baseSlug . '-' . (++$si);
+        } else {
+            $post = $getPost($postId);
+            if ($post === null) jvb_json(['success' => false, 'message' => 'Post not found'], 404);
+            jvb_require_content_action($pdo, $uid, $post, 'publish');
+        }
+        try {
+            if ($ownsTransaction) $pdo->beginTransaction();
+            if ($newPost) {
+                $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $title));
+                $slug = trim($slug, '-') ?: 'untitled-' . bin2hex(random_bytes(3));
+                $baseSlug = $slug; $si = 1;
+                while (true) {
+                    $chk = $pdo->prepare('SELECT id FROM posts WHERE slug = ? AND is_deleted = 0 LIMIT 1');
+                    $chk->execute([$slug]);
+                    if (!$chk->fetchColumn()) break;
+                    $slug = $baseSlug . '-' . (++$si);
+                }
+                $pdo->prepare('INSERT INTO posts (title, slug, type, status, content, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())')
+                    ->execute([$title, $slug, $postType, 'draft', '', $uid]);
+                $postId = (int)$pdo->lastInsertId();
+                $post = ['id' => $postId, 'title' => $title, 'slug' => $slug, 'type' => $postType, 'status' => 'draft', 'created_by' => $uid];
             }
-            $pdo->prepare('INSERT INTO posts (title, slug, type, status, content, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())')
-                ->execute([$title, $slug, $postType, 'draft', '', $uid]);
-            $postId = (int)$pdo->lastInsertId();
-        }
-        $post = $getPost($postId);
-        if ($post === null) jvb_json(['success' => false, 'message' => 'Post not found'], 404);
-        jvb_require_content_action($pdo, $uid, $post, 'publish');
-        // Publish current editor state if provided, else stored draft
-        if (isset($in['layout'])) {
-            $layout = jvb_normalize_layout($in['layout']);
-            if (jvb_layout_has_restricted_elements($layout) && !jvb_user_can_restricted_elements($pdo, $uid, $post)) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
-            jvb_save_draft($pdo, (int)$post['id'], $layout, $uid);
-        }
-        $storedDraft = jvb_get_layout($pdo, (int)$post['id'], 'draft');
-        if ($storedDraft !== null && jvb_layout_has_restricted_elements($storedDraft)
-            && !jvb_user_can_restricted_elements($pdo, $uid, $post)) {
-            jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
-        }
-        if (!jvb_publish($pdo, (int)$post['id'], $uid)) {
-            jvb_json(['success' => false, 'message' => 'Nothing to publish (empty draft)'], 400);
-        }
-        // Sync rendered HTML to posts.content for fallback (plugin uninstalled)
-        $pubLayout = jvb_get_layout($pdo, (int)$post['id'], 'published');
-        if ($pubLayout !== null) {
-            // Self-contained fallback: embed frontend.css inline so the page
-            // stays fully styled even if the plugin is later uninstalled
-            // (static assets under static/vendor get removed by the CMS).
-            $rendered = jvb_render_layout($pdo, $pubLayout, $post, ['inline_css' => true]);
-            // Embed frontend.js too — behaviors (accordion, carousel init via
-            // core-shipped Swiper, animations) keep working after uninstall.
-            $jsFile = dirname(__DIR__) . '/assets/frontend.js';
-            if (is_file($jsFile)) {
-                $rendered .= '<script>' . file_get_contents($jsFile) . '</script>';
+            // Publish current editor state if provided, else stored draft.
+            if (isset($in['layout'])) {
+                $layout = jvb_normalize_layout($in['layout']);
+                if (jvb_layout_has_restricted_elements($layout) && !jvb_user_can_restricted_elements($pdo, $uid, $post)) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
+                jvb_save_draft($pdo, (int)$post['id'], $layout, $uid);
             }
-            $pdo->prepare('UPDATE `posts` SET content = ? WHERE id = ?')->execute([$rendered, (int)$post['id']]);
+            $storedDraft = jvb_get_layout($pdo, (int)$post['id'], 'draft');
+            if ($storedDraft !== null && jvb_layout_has_restricted_elements($storedDraft)
+                && !jvb_user_can_restricted_elements($pdo, $uid, $post)) {
+                jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
+            }
+            if (!jvb_publish($pdo, (int)$post['id'], $uid)) {
+                throw new UnexpectedValueException('Nothing to publish (empty draft)');
+            }
+            // Sync rendered HTML to posts.content for fallback (plugin uninstalled).
+            $pubLayout = jvb_get_layout($pdo, (int)$post['id'], 'published');
+            if ($pubLayout !== null) {
+                $rendered = jvb_render_layout($pdo, $pubLayout, $post, ['inline_css' => true]);
+                $jsFile = dirname(__DIR__) . '/assets/frontend.js';
+                if (is_file($jsFile)) $rendered .= '<script>' . file_get_contents($jsFile) . '</script>';
+                $pdo->prepare('UPDATE `posts` SET content = ? WHERE id = ?')->execute([$rendered, (int)$post['id']]);
+            }
+            if ($ownsTransaction) $pdo->commit();
+            jvb_json(['success' => true, 'post_id' => (int)$post['id'], 'published_at' => date('Y-m-d H:i:s')]);
+        } catch (Throwable $error) {
+            if ($ownsTransaction && $pdo->inTransaction()) $pdo->rollBack();
+            error_log('[jyavani-builder] Publish failed: ' . $error->getMessage());
+            $emptyDraft = $error instanceof UnexpectedValueException && $error->getMessage() === 'Nothing to publish (empty draft)';
+            $validationError = $error instanceof RuntimeException
+                && str_starts_with($error->getMessage(), 'A selected Content Preset');
+            $message = ($emptyDraft || $validationError) ? $error->getMessage() : 'Publish failed';
+            jvb_json(['success' => false, 'message' => $message], $emptyDraft ? 400 : ($validationError ? 422 : 500));
         }
-        jvb_json(['success' => true, 'post_id' => (int)$post['id'], 'published_at' => date('Y-m-d H:i:s')]);
     }
 
     case 'post_settings': {
@@ -395,7 +425,12 @@ switch ($action) {
         if (jvb_layout_has_restricted_elements($revisionLayout) && !jvb_user_can_restricted_elements($pdo, $uid, $revisionPost)) {
             jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
         }
-        $postId = jvb_restore_revision($pdo, $revisionId, $uid);
+        try {
+            $postId = jvb_restore_revision($pdo, $revisionId, $uid);
+        } catch (RuntimeException $error) {
+            if (!str_starts_with($error->getMessage(), 'A selected Content Preset')) throw $error;
+            jvb_json(['success' => false, 'message' => $error->getMessage()], 422);
+        }
         if ($postId === null) jvb_json(['success' => false, 'message' => 'Revision not found'], 404);
         $layout = jvb_get_layout($pdo, $postId, 'draft') ?? jvb_empty_layout();
         jvb_json(['success' => true, 'layout' => $layout]);
@@ -407,6 +442,24 @@ switch ($action) {
         if (jvb_layout_has_restricted_elements($layout) && !jvb_user_can_restricted_elements($pdo, $uid)) jvb_json(['success' => false, 'message' => 'Restricted builder element'], 403);
         $html = jvb_render_layout($pdo, $layout, [], ['canvas' => true]);
         jvb_json(['success' => true, 'html' => $html]);
+    }
+
+    case 'presets_search': {
+        $query = is_string($in['query'] ?? null) ? $in['query'] : '';
+        $currentId = filter_var($in['current_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $includeIds = $currentId === false ? [] : [(int)$currentId];
+        jvb_json(['success' => true, 'presets' => jvb_published_presets($pdo, $query, 100, $includeIds)]);
+    }
+
+    case 'presets_resolve': {
+        $slugs = $in['slugs'] ?? [];
+        if (!is_array($slugs) || count($slugs) > 200) jvb_json(['success' => false, 'message' => 'Invalid Content Preset list'], 400);
+        try {
+            $presets = jvb_published_presets_by_slugs($pdo, $slugs);
+        } catch (InvalidArgumentException $error) {
+            jvb_json(['success' => false, 'message' => $error->getMessage()], 400);
+        }
+        jvb_json(['success' => true, 'presets' => $presets]);
     }
 
     case 'elements': {
@@ -429,6 +482,17 @@ switch ($action) {
         try {
             $cats = $pdo->query("SELECT slug, name FROM `categories` WHERE is_deleted = 0 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC) ?: [];
         } catch (Throwable $e) {}
+        $currentPresetIds = [];
+        $elementsPostId = filter_var($in['post_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($elementsPostId !== false) {
+            $elementsPost = $getPost((int)$elementsPostId);
+            if ($elementsPost !== null) {
+                $currentLayout = jvb_get_layout($pdo, (int)$elementsPost['id'], 'draft')
+                    ?? jvb_get_layout($pdo, (int)$elementsPost['id'], 'published');
+                if ($currentLayout !== null) $currentPresetIds = jvb_layout_preset_ids($currentLayout);
+            }
+        }
+        $presets = jvb_published_presets($pdo, '', 100, $currentPresetIds);
         // Icon SVG bodies for palette + icon picker
         $iconSvgs = [];
         foreach (jvb_available_icons() as $iconName) {
@@ -439,10 +503,12 @@ switch ($action) {
             'elements' => $out,
             'icons' => jvb_available_icons(),
             'icon_svgs' => $iconSvgs,
+            'icon_packs' => jvb_icon_pack_catalog(),
             'ui_icons' => jvb_ui_icons_js(['x', 'trash-2', 'copy', 'pen', 'plus', 'grip-vertical', 'chevron-left', 'chevron-right', 'rows-3', 'align-left', 'align-center', 'align-right', 'align-justify', 'monitor', 'tablet', 'smartphone']),
             'tokens' => jvb_get_tokens($pdo),
             'forms' => $forms,
             'categories' => $cats,
+            'presets' => $presets,
             'role' => $me['role'],
         ]);
     }
@@ -485,7 +551,12 @@ switch ($action) {
             if ($existing === null || !empty($existing['is_starter'])) jvb_json(['success' => false, 'message' => 'Template not found'], 404);
             if (!$manageAny && (int)($existing['created_by'] ?? 0) !== $uid) jvb_json(['success' => false, 'message' => 'Access denied'], 403);
         }
-        $id = jvb_save_template($pdo, $title, $type, $layout, $uid, $templateId);
+        try {
+            $id = jvb_save_template($pdo, $title, $type, $layout, $uid, $templateId);
+        } catch (RuntimeException $error) {
+            if (!str_starts_with($error->getMessage(), 'A selected Content Preset')) throw $error;
+            jvb_json(['success' => false, 'message' => $error->getMessage()], 422);
+        }
         jvb_json(['success' => true, 'template_id' => $id]);
     }
 

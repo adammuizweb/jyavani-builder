@@ -255,6 +255,7 @@ Each element has: `id`, `type`, `settings` (type-specific).
 {
   "id": "e_005", "type": "icon",
   "settings": {
+    "icon_pack": "core",
     "name": "star",
     "size": 32,
     "color": "primary",
@@ -263,7 +264,8 @@ Each element has: `id`, `type`, `settings` (type-specific).
   }
 }
 ```
-- `name`: any [Lucide icon](https://lucide.dev/icons) name (kebab-case)
+- `icon_pack`: `"core"` for the CMS Lucide collection or `"heroicons"` for Jy Builder's bundled Heroicons Outline collection
+- `name`: an icon name exposed by the selected pack in the Builder picker (kebab-case)
 
 #### spacer
 ```json
@@ -474,7 +476,8 @@ Each element has: `id`, `type`, `settings` (type-specific).
 {
   "id": "e_016", "type": "iconbox",
   "settings": {
-    "icon": "zap",
+    "icon_pack": "heroicons",
+    "icon": "bolt",
     "title": "Fast",
     "text": "Optimized for speed from the ground up.",
     "url": "",
@@ -484,6 +487,7 @@ Each element has: `id`, `type`, `settings` (type-specific).
   }
 }
 ```
+- `icon_pack`: `"core"` or `"heroicons"`; omitted values remain `"core"` for backward compatibility
 - `layout`: `"top"` (icon above text) or `"left"` (icon beside text)
 
 ### Dynamic Elements

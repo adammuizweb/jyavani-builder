@@ -1,11 +1,11 @@
 <?php
-// /plugins/jyavani-builder/plugin.php — Jy Builder v3.3.6
+// /plugins/jyavani-builder/plugin.php — Jy Builder v3.4.0
 declare(strict_types=1);
 
 // Loaded on every request (admin + frontend) via plugin_load_active(). No context guard here —
 // guards belong in the admin page files.
 
-const JVB_VERSION = '3.3.6';
+const JVB_VERSION = '3.4.0';
 const JVB_LAYOUT_VERSION = 2;
 const JVB_SETTINGS_TOKENS_KEY = 'jvb_design_tokens';
 const JVB_DYNAMIC_ACCESS_MIGRATED_KEY = 'jvb_dynamic_access_migrated';
@@ -117,24 +117,43 @@ function jvb_layout_statuses(PDO $pdo, array $postIds): array {
 }
 
 function jvb_save_draft(PDO $pdo, int $postId, array $layout, ?int $uid = null): void {
-    $json = json_encode(jvb_normalize_layout($layout), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    $pdo->prepare("
-        INSERT INTO `jvb_layouts` (post_id, status, draft_json, updated_by) VALUES (?, 'draft', ?, ?)
-        ON DUPLICATE KEY UPDATE draft_json = VALUES(draft_json), updated_by = VALUES(updated_by)
-    ")->execute([$postId, $json, $uid]);
-    jvb_cache_forget($postId);
+    $layout = jvb_normalize_layout($layout);
+    $ownsTransaction = !$pdo->inTransaction();
+    if ($ownsTransaction) $pdo->beginTransaction();
+    try {
+        $layout = jvb_lock_layout_presets($pdo, $layout);
+        $json = json_encode($layout, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $pdo->prepare("
+            INSERT INTO `jvb_layouts` (post_id, status, draft_json, updated_by) VALUES (?, 'draft', ?, ?)
+            ON DUPLICATE KEY UPDATE draft_json = VALUES(draft_json), updated_by = VALUES(updated_by)
+        ")->execute([$postId, $json, $uid]);
+        if ($ownsTransaction) $pdo->commit();
+        jvb_cache_forget($postId);
+    } catch (Throwable $error) {
+        if ($ownsTransaction && $pdo->inTransaction()) $pdo->rollBack();
+        throw $error;
+    }
 }
 
 function jvb_publish(PDO $pdo, int $postId, ?int $uid = null): bool {
     $row = jvb_get_layout_row($pdo, $postId);
     if ($row === null || empty($row['draft_json'])) return false;
     $layout = jvb_normalize_layout($row['draft_json']);
-    $json = json_encode($layout, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    jvb_add_revision($pdo, $postId, $layout, 'publish', $uid);
-    $pdo->prepare("UPDATE `jvb_layouts` SET published_json = ?, status = 'published', published_at = NOW(), updated_by = ? WHERE post_id = ?")
-        ->execute([$json, $uid, $postId]);
-    jvb_cache_forget($postId);
-    return true;
+    $ownsTransaction = !$pdo->inTransaction();
+    if ($ownsTransaction) $pdo->beginTransaction();
+    try {
+        $layout = jvb_lock_layout_presets($pdo, $layout);
+        $json = json_encode($layout, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        jvb_add_revision($pdo, $postId, $layout, 'publish', $uid);
+        $pdo->prepare("UPDATE `jvb_layouts` SET published_json = ?, status = 'published', published_at = NOW(), updated_by = ? WHERE post_id = ?")
+            ->execute([$json, $uid, $postId]);
+        if ($ownsTransaction) $pdo->commit();
+        jvb_cache_forget($postId);
+        return true;
+    } catch (Throwable $error) {
+        if ($ownsTransaction && $pdo->inTransaction()) $pdo->rollBack();
+        throw $error;
+    }
 }
 
 function jvb_unpublish(PDO $pdo, int $postId): void {
@@ -380,15 +399,27 @@ function jvb_get_template(PDO $pdo, int $id): ?array {
 }
 
 function jvb_save_template(PDO $pdo, string $title, string $type, $layout, ?int $uid = null, ?int $id = null): int {
-    $json = json_encode(is_string($layout) ? json_decode($layout, true) : $layout, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if ($id !== null && $id > 0) {
-        $pdo->prepare('UPDATE `jvb_templates` SET title = ?, type = ?, layout_json = ? WHERE id = ? AND is_starter = 0')
-            ->execute([$title, $type, $json, $id]);
-        return $id;
+    $layout = jvb_normalize_layout($layout);
+    $ownsTransaction = !$pdo->inTransaction();
+    if ($ownsTransaction) $pdo->beginTransaction();
+    try {
+        $layout = jvb_lock_layout_presets($pdo, $layout);
+        $json = json_encode($layout, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        if ($id !== null && $id > 0) {
+            $pdo->prepare('UPDATE `jvb_templates` SET title = ?, type = ?, layout_json = ? WHERE id = ? AND is_starter = 0')
+                ->execute([$title, $type, $json, $id]);
+            $templateId = $id;
+        } else {
+            $pdo->prepare('INSERT INTO `jvb_templates` (title, type, layout_json, created_by) VALUES (?, ?, ?, ?)')
+                ->execute([$title, $type, $json, $uid]);
+            $templateId = (int)$pdo->lastInsertId();
+        }
+        if ($ownsTransaction) $pdo->commit();
+        return $templateId;
+    } catch (Throwable $error) {
+        if ($ownsTransaction && $pdo->inTransaction()) $pdo->rollBack();
+        throw $error;
     }
-    $pdo->prepare('INSERT INTO `jvb_templates` (title, type, layout_json, created_by) VALUES (?, ?, ?, ?)')
-        ->execute([$title, $type, $json, $uid]);
-    return (int)$pdo->lastInsertId();
 }
 
 function jvb_delete_template(PDO $pdo, int $id): void {
@@ -587,6 +618,12 @@ function jvb_migrate_v1(PDO $pdo, int $postId): bool {
 require_once __DIR__ . '/public/render.php';
 require_once __DIR__ . '/public/starters.php';
 
+add_action('admin_shortcode_preset_before_delete', static function (int $presetId, PDO $pdo): void {
+    if (jvb_preset_is_referenced($pdo, $presetId)) {
+        throw new RuntimeException('This preset is used by a Jy Builder layout, template, or revision.');
+    }
+});
+
 // Track whether any layout was rendered this request (for footer assets).
 function jvb_mark_rendered(): void { $GLOBALS['_jvb_any_rendered'] = true; }
 
@@ -616,9 +653,18 @@ function jvb_icon_svg(string $name): string {
     return $cache[$name];
 }
 
-// Keep copied static assets on the same cache key as the plugin release.
+// Keep production URLs release-bound while also invalidating immutable caches
+// when a candidate asset changes before the next version is published.
 function jvb_asset_url(string $file): string {
-    return '/static/plugins/jyavani-builder/' . $file . '?v=' . JVB_VERSION;
+    static $revisions = [];
+    $source = __DIR__ . '/assets/' . $file;
+    if ($file === 'heroicons-outline.svg') $source = __DIR__ . '/assets/icon-packs/' . $file;
+    if (!array_key_exists($source, $revisions)) {
+        $hash = is_file($source) ? hash_file('sha256', $source) : false;
+        $revisions[$source] = is_string($hash) ? '.' . substr($hash, 0, 12) : '';
+    }
+    $revision = $revisions[$source];
+    return '/static/plugins/jyavani-builder/' . $file . '?v=' . rawurlencode(JVB_VERSION . $revision);
 }
 
 // Icon map for JS chrome (builder + frame), keyed by name → inline SVG.
@@ -629,6 +675,7 @@ function jvb_ui_icons_js(array $names): array {
 }
 
 add_filter('post_content', function (string $html, array $post = []): string {
+    static $renderedLayouts = [];
     $postId = (int)($post['id'] ?? 0);
     if ($postId <= 0) return $html;
     $pdo = $GLOBALS['pdo'] ?? null;
@@ -638,6 +685,15 @@ add_filter('post_content', function (string $html, array $post = []): string {
     $which = 'published';
     if (isset($_GET['jvb_preview']) && jvb_can_preview_draft($pdo, $postId)) $which = 'draft';
 
+    // Core may filter singular content once inside the theme slot and again in
+    // layout.php. Reuse the first output so nested Preset styles are not lost
+    // after Core's request-level style deduplication constants have been set.
+    $renderKey = spl_object_id($pdo) . ':' . $postId . ':' . $which;
+    if (array_key_exists($renderKey, $renderedLayouts)) {
+        jvb_mark_rendered();
+        return $renderedLayouts[$renderKey];
+    }
+
     $layout = jvb_get_layout($pdo, $postId, $which);
     if ($layout === null) return $html;
 
@@ -646,7 +702,7 @@ add_filter('post_content', function (string $html, array $post = []): string {
     if ($which === 'draft') {
         $out = '<div class="jvb-preview-bar">' . jvb_icon_svg('alert-triangle') . ' Draft preview — <a href="?">exit preview</a></div>' . $out;
     }
-    return $out;
+    return $renderedLayouts[$renderKey] = $out;
 }, 5);
 
 // ---------------- Homepage support ----------------

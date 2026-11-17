@@ -20,8 +20,8 @@ try {
 }
 $plugin = (string)file_get_contents($root . '/plugin.php');
 
-$check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.148', 'manifest requires the shared content-list Core release');
-$check(($manifest['version'] ?? null) === '3.3.6' && str_contains($plugin, "const JVB_VERSION = '3.3.6'"), 'manifest and runtime declare the 3.3.6 candidate');
+$check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.160', 'manifest requires the public Content Preset rendering API');
+$check(($manifest['version'] ?? null) === '3.4.0' && str_contains($plugin, "const JVB_VERSION = '3.4.0'"), 'manifest and runtime declare the 3.4.0 candidate');
 $permissionKeys = array_column($manifest['permissions'] ?? [], 'key');
 sort($permissionKeys);
 $expectedKeys = [

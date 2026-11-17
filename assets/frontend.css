@@ -64,7 +64,7 @@
 .jvb-image { margin: 0; }
 .jvb-image img { width: 100%; }
 .jvb-image figcaption { font-size: .85em; color: var(--jvb-muted, #64748b); margin-top: .5rem; text-align: center; }
-.jvb-image--empty, .jvb-video--empty, .jvb-gallery--empty, .jvb-posts--empty, .jvb-form--empty, .jvb-countdown--empty {
+.jvb-image--empty, .jvb-video--empty, .jvb-gallery--empty, .jvb-posts--empty, .jvb-form--empty, .jvb-countdown--empty, .jvb-preset-collection--empty {
   padding: 2rem; text-align: center; color: var(--jvb-muted, #64748b);
   border: 1px dashed var(--jvb-border, #e2e8f0); border-radius: var(--jvb-radius, 10px);
 }
@@ -212,6 +212,19 @@
 .jvb-posts__body p { margin: 0; color: var(--jvb-muted, #64748b); font-size: .9em; flex: 1; }
 .jvb-posts__more { font-weight: 600; font-size: .9em; color: var(--jvb-pst, var(--jvb-primary)); }
 
+/* Published Preset collection */
+.jvb-preset-collection { display: grid; gap: 1.5rem; min-width: 0; max-width: 100%; }
+.jvb-preset-collection__head {
+  display: flex; align-items: end; justify-content: space-between; gap: 1.5rem;
+  padding-bottom: 1rem; border-bottom: 1px solid var(--jvb-border, #e2e8f0);
+}
+.jvb-preset-collection__title { margin: 0; font-family: var(--jvb-font-heading, inherit); font-size: clamp(1.5rem, 3vw, 2.25rem); line-height: 1.15; }
+.jvb-preset-collection__summary { max-width: 64ch; margin: .5rem 0 0; color: var(--jvb-muted, #64748b); }
+.jvb-preset-collection__more { flex: none; font-weight: 700; }
+.jvb-preset-collection__content { min-width: 0; max-width: 100%; }
+.jvb-preset-collection__content > :first-child { margin-top: 0; }
+.jvb-preset-collection__content > :last-child { margin-bottom: 0; }
+
 /* Shape dividers */
 .jvb-shape-wrap { position: absolute; left: 0; right: 0; z-index: 2; pointer-events: none; overflow: hidden; }
 .jvb-shape-wrap--top { top: -1px; }
@@ -258,6 +271,7 @@
   .jvb-col { flex: none !important; width: 100% !important; }
   .jvb-countdown { flex-wrap: wrap; justify-content: center; }
   .jvb-posts { grid-template-columns: 1fr !important; }
+  .jvb-preset-collection__head { align-items: flex-start; flex-direction: column; gap: .75rem; }
   .jvb-gallery { grid-template-columns: repeat(2, 1fr) !important; }
 }
 

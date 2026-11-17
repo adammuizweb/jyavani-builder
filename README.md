@@ -2,7 +2,7 @@
 
 Visual drag-and-drop builder for [Jyavani CMS](https://github.com/adammuizweb/jyavani). Works with articles, pages, and themes.
 
-![Version](https://img.shields.io/badge/version-3.3.6-blue)
+![Version](https://img.shields.io/badge/version-3.4.0-blue)
 ![PHP](https://img.shields.io/badge/PHP-%3E%3D8.1-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -11,10 +11,11 @@ Visual drag-and-drop builder for [Jyavani CMS](https://github.com/adammuizweb/jy
 - **WYSIWYG iframe canvas** with inline text editing
 - **Public-shell preview** with the active theme header and footer shown muted and noninteractive
 - **Section > Row > Column > Element** hierarchy (Divi-style)
-- **22 element types**: heading, richtext, image, button, icon, spacer, divider, video, accordion, tabs, counter, countdown, gallery, carousel, card, testimonial, pricing, iconbox, posts grid, form, HTML, shortcode
+- **23 element types**: heading, richtext, image, button, icon, spacer, divider, video, accordion, tabs, counter, countdown, gallery, carousel, card, testimonial, pricing, iconbox, published preset, posts grid, form, HTML, shortcode
 - **Drag-and-drop** palette with pointer-based cross-iframe DnD
 - **Responsive controls** — per-device settings for desktop, tablet, mobile
 - **Design tokens** — 8 color tokens, typography scale, spacing system
+- **Dual icon libraries** — Core Lucide plus 324 bundled Heroicons Outline icons with editable color
 - **Draft/publish workflow** — edits never touch live until published
 - **Revisions** — automatic snapshots on each publish (cap 20)
 - **Template library** — save sections as reusable templates
@@ -62,7 +63,7 @@ plugin becomes active.
 |-------|----------|
 | Basic | Heading, Rich Text, Image, Button, Icon, Spacer, Divider, Video |
 | Content | Accordion, Tabs, Counter, Countdown, Gallery, Carousel, Card, Testimonial, Pricing, Icon Box |
-| Dynamic | Posts Grid, Form |
+| Dynamic | Published Preset, Posts Grid, Form |
 | Advanced | HTML, Shortcode |
 
 ### Section layouts
@@ -101,7 +102,7 @@ Section (full-width horizontal band)
 
 ## Requirements
 
-- Jyavani CMS ≥ 2.3.148
+- Jyavani CMS ≥ 2.3.160
 - PHP ≥ 8.1
 - PDO, JSON extensions
 
@@ -112,3 +113,6 @@ Section (full-width horizontal band)
 ## License
 
 MIT
+
+Bundled Heroicons Outline assets are licensed under the MIT License, Copyright
+Tailwind Labs, Inc. See `assets/icon-packs/HEROICONS-LICENSE.txt`.
