@@ -38,9 +38,10 @@ $packageFiles = [
     'admin/assets/frontend.css', 'admin/builder.php', 'admin/index.php', 'admin/templates.php', 'admin/tokens.php',
     'assets/builder.css', 'assets/builder.js', 'assets/frame.css', 'assets/frame.js', 'assets/frontend.css', 'assets/frontend.js',
     'assets/icon-packs/heroicons-outline.svg', 'assets/icon-packs/HEROICONS-LICENSE.txt',
-    'migrations/0001-create-builder-tables.sql',
+    'migrations/0001-create-builder-tables.sql', 'migrations/0002-localized-home-layouts.sql',
     'public/render.php', 'public/starters.php',
     'tests/layout_status_contract.php', 'tests/preset_element_contract.php', 'tests/schema_contract.php', 'tests/security_contract.php',
+    'tests/component_contract.php', 'tests/theme_template_contract.php',
 ];
 $files = [];
 foreach ($packageFiles as $relative) {

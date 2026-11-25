@@ -2,7 +2,7 @@
 
 Visual drag-and-drop builder for [Jyavani CMS](https://github.com/adammuizweb/jyavani). Works with articles, pages, and themes.
 
-![Version](https://img.shields.io/badge/version-3.4.0-blue)
+![Version](https://img.shields.io/badge/version-3.4.1-blue)
 ![PHP](https://img.shields.io/badge/PHP-%3E%3D8.1-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -11,7 +11,7 @@ Visual drag-and-drop builder for [Jyavani CMS](https://github.com/adammuizweb/jy
 - **WYSIWYG iframe canvas** with inline text editing
 - **Public-shell preview** with the active theme header and footer shown muted and noninteractive
 - **Section > Row > Column > Element** hierarchy (Divi-style)
-- **23 element types**: heading, richtext, image, button, icon, spacer, divider, video, accordion, tabs, counter, countdown, gallery, carousel, card, testimonial, pricing, iconbox, published preset, posts grid, form, HTML, shortcode
+- **24 element types**: heading, richtext, image, button, icon, spacer, divider, video, accordion, profile quote, tabs, counter, countdown, gallery, carousel, card, testimonial, pricing, iconbox, published preset, posts grid, form, HTML, shortcode
 - **Drag-and-drop** palette with pointer-based cross-iframe DnD
 - **Responsive controls** — per-device settings for desktop, tablet, mobile
 - **Design tokens** — 8 color tokens, typography scale, spacing system
@@ -27,6 +27,8 @@ Visual drag-and-drop builder for [Jyavani CMS](https://github.com/adammuizweb/jy
 - **AI generation** — paste `ai.md` into any AI chat to generate layouts
 - **Role-based access** — author/editor own posts only, admin all
 - **Mobile-friendly builder** — slide-over panels, tap-to-insert
+- **Theme Content integration** — open assigned homepage content directly in Builder, with optional localized homepage mappings
+- **Accessible interactive content** — keyboard tabs, content sliders, and responsive card rails
 - **Zero dependencies** — no build tools, no npm, pure PHP + vanilla JS
 
 ## Installation
@@ -62,7 +64,7 @@ plugin becomes active.
 | Group | Elements |
 |-------|----------|
 | Basic | Heading, Rich Text, Image, Button, Icon, Spacer, Divider, Video |
-| Content | Accordion, Tabs, Counter, Countdown, Gallery, Carousel, Card, Testimonial, Pricing, Icon Box |
+| Content | Accordion, Profile Quote, Tabs, Counter, Countdown, Gallery, Carousel, Card, Testimonial, Pricing, Icon Box |
 | Dynamic | Published Preset, Posts Grid, Form |
 | Advanced | HTML, Shortcode |
 
@@ -96,9 +98,15 @@ Section (full-width horizontal band)
 - **Storage**: `jvb_layouts` table (draft/published JSON per post)
 - **Revisions**: `jvb_revisions` table (snapshots on publish)
 - **Templates**: `jvb_templates` table (section/page library)
+- **Localized homepages**: optional `jvb_home_locales` mappings for published Theme Content layouts
 - **Design tokens**: stored in CMS settings (`jvb_design_tokens`)
 - **Frontend**: `post_content` filter renders published layout
 - **Fallback**: rendered HTML synced to `posts.content` on publish
+
+Trusted integrations can register an isolated localized Theme Content layout with
+`jvb_set_home_locale_target($pdo, $sourcePostId, $locale, $localizedPostId)` and
+remove it with `jvb_remove_home_locale_target()`. Both posts must be Theme Content
+with Builder layouts; only published posts and layouts become public routes.
 
 ## Requirements
 

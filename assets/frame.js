@@ -35,9 +35,12 @@
   function injectChrome() {
     document.querySelectorAll('[data-jvb]').forEach(function (node) {
       if (node.querySelector(':scope > .jvb-chip')) return;
-      var chip = document.createElement('span');
+      var chip = document.createElement('button');
+      chip.type = 'button';
       chip.className = 'jvb-chip';
       chip.textContent = labelOf(node);
+      chip.title = 'Select ' + labelOf(node);
+      chip.setAttribute('aria-label', chip.title);
       node.insertBefore(chip, node.firstChild);
 
       var kind = kindOf(node);
@@ -188,6 +191,20 @@
 
   function nodeById(id) {
     return document.querySelector('[data-jvb="' + id + '"]');
+  }
+
+  function restoreViewport(msg) {
+    var x = Number.isFinite(+msg.x) ? +msg.x : 0;
+    var y = Number.isFinite(+msg.y) ? +msg.y : 0;
+    var anchor = msg.anchorId ? nodeById(msg.anchorId) : null;
+    if (anchor && Number.isFinite(+msg.anchorTop)) {
+      y = window.scrollY + anchor.getBoundingClientRect().top - (+msg.anchorTop);
+    }
+    var root = document.documentElement;
+    var previousBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+    window.scrollTo(Math.max(0, x), Math.max(0, y));
+    requestAnimationFrame(function () { root.style.scrollBehavior = previousBehavior; });
   }
 
   // ---------- Inline editing ----------
@@ -406,7 +423,9 @@
     if (!msg || msg.source !== 'jvb-parent') return;
     if (msg.t === 'highlight') {
       var node = nodeById(msg.id);
-      if (node) selectNode(node, true);
+      if (node) selectNode(node, msg.scroll !== false);
+    } else if (msg.t === 'restore-viewport') {
+      restoreViewport(msg);
     } else if (msg.t === 'deselect') {
       selectNode(null, false);
     }

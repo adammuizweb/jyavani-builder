@@ -21,6 +21,11 @@ $check(substr_count($migration, 'CREATE TABLE IF NOT EXISTS') === 3
     && str_contains($migration, '`jvb_revisions`')
     && str_contains($migration, '`jvb_templates`'),
     'migration idempotently creates every Builder table');
+$localeMigration = (string)file_get_contents($root . '/migrations/0002-localized-home-layouts.sql');
+$check(str_contains($localeMigration, '`jvb_home_locales`')
+    && str_contains($localeMigration, 'PRIMARY KEY (`source_post_id`, `locale`)')
+    && str_contains($localeMigration, 'UNIQUE KEY `uniq_jvb_home_locale_post`'),
+    'localized homepage migration maps one Builder post per locale');
 
 try {
     $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);

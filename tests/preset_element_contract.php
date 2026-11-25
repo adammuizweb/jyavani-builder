@@ -34,8 +34,10 @@ foreach (($definition['fields'] ?? []) as $field) {
 }
 $check(($fields['preset_id']['type'] ?? '') === 'presetpicker'
     && ($fields['layout']['options']['grid'] ?? '') === 'Grid'
+    && ($fields['limit']['type'] ?? '') === 'number'
+    && ($fields['max_items']['type'] ?? '') === 'number'
     && array_key_exists('', $fields['layout']['options'] ?? []),
-    'element exposes the published-preset picker and bounded block styles');
+    'element exposes the published-preset picker, bounded block styles, and pagination overrides');
 
 $iconDefinition = $registry['icon'] ?? [];
 $iconBoxDefinition = $registry['iconbox'] ?? [];
@@ -101,6 +103,8 @@ $settings = [
     'summary' => 'Selected content',
     'more_text' => 'View all',
     'more_url' => 'javascript:alert(1)',
+    'limit' => 4,
+    'max_items' => 20,
 ];
 $html = jvb_render_preset_collection($pdo, $settings, [
     'canvas' => true,
@@ -110,7 +114,7 @@ $html = jvb_render_preset_collection($pdo, $settings, [
 $call = $GLOBALS['jvb_preset_render_call'];
 $check(is_array($call)
     && ($call['preset'] ?? null) === 1
-    && ($call['overrides'] ?? null) === ['layout' => 'grid']
+    && ($call['overrides'] ?? null) === ['layout' => 'grid', 'limit' => 4, 'max_items' => 20]
     && ($call['context']['surface'] ?? '') === 'plugin.jyavani-builder'
     && ($call['context']['post_id'] ?? 0) === 42
     && ($call['context']['element_id'] ?? '') === 'el_1',
@@ -193,6 +197,16 @@ $check(str_contains($builder, 'FR.presetpicker = function')
     && str_contains($builder, "api('presets_search'")
     && str_contains($builder, 'Unavailable preset (ID '),
     'builder provides a bounded searchable picker and preserves missing selections for repair');
+$render = (string)file_get_contents($root . '/public/render.php');
+$check(str_contains($builder, 'Typography & Alignment')
+    && str_contains($builder, "key: 'border_width'")
+    && str_contains($builder, "key: 'overflow'")
+    && str_contains($builder, 'Flip shape')
+    && str_contains($builder, "key: 'custom_css'")
+    && str_contains($render, "function jvb_css_shadow")
+    && str_contains($render, "'overflow:' . \$s['overflow']")
+    && str_contains($render, "'>.jvb-btn' : \$sel"),
+    'section styling exposes typography, depth, overflow, shape direction, and custom declarations');
 $check(str_contains($builder, 'S.iconPacks = els.icon_packs')
     && str_contains($builder, 'jvb-icon-pack-select')
     && str_contains($builder, '#jvb-hero-'),

@@ -172,7 +172,7 @@ The root layout object:
 
 ---
 
-## Element Types (22 available)
+## Element Types (24 available)
 
 Each element has: `id`, `type`, `settings` (type-specific).
 
@@ -323,16 +323,43 @@ Each element has: `id`, `type`, `settings` (type-specific).
 }
 ```
 
+#### profile_quote
+```json
+{
+  "id": "e_profile", "type": "profile_quote",
+  "settings": {
+    "kicker": "Featured perspective",
+    "heading": "A meaningful point of view",
+    "heading_tag": "h2",
+    "quote": "<p>Share an editorial quote here.</p>",
+    "name": "Profile name",
+    "role_one": "Role or title",
+    "cta_text": "View profile",
+    "cta_url": "#",
+    "image": "https://example.com/profile.jpg",
+    "image_alt": "Profile name",
+    "portrait_position": "right",
+    "surface_color": "secondary",
+    "text_color": "#ffffff",
+    "accent_color": "accent"
+  }
+}
+```
+
 #### tabs
 ```json
 {
   "id": "e_010", "type": "tabs",
   "settings": {
     "items": [
-      { "title": "Tab 1", "content": "<p>Content 1</p>" },
-      { "title": "Tab 2", "content": "<p>Content 2</p>" }
+      { "title": "Tab 1", "content": "<p>Content 1</p>", "list_items": [] },
+      { "title": "Tab 2", "content": "<p>Content 2</p>", "list_items": [] }
     ],
-    "color": "primary"
+    "aria_label": "Content tabs",
+    "variant": "pills-card",
+    "nav_align": "center",
+    "color": "primary",
+    "list_style": "plain"
   }
 }
 ```
@@ -392,6 +419,7 @@ Each element has: `id`, `type`, `settings` (type-specific).
       { "url": "https://example.com/1.jpg", "alt": "Slide 1" },
       { "url": "https://example.com/2.jpg", "alt": "Slide 2" }
     ],
+    "presentation": "images",
     "per_view": { "d": 1, "t": 1, "m": 1 },
     "gap": 16,
     "ratio": "16/9",
@@ -406,6 +434,7 @@ Each element has: `id`, `type`, `settings` (type-specific).
 }
 ```
 - Swiper-based (Swiper ships with CMS core — keeps working even if the plugin is uninstalled)
+- `presentation`: `"images"`, `"content-slides"`, or `"card-rail"`. Content slides use `slides`; card rails use `cards`.
 - `per_view`: slides visible per device (1–4)
 - `ratio`: `"16/9"`, `"4/3"`, `"1/1"`, `"3/4"`, `"21/9"`
 - `effect`: `"slide"` or `"fade"`
@@ -424,13 +453,14 @@ Each element has: `id`, `type`, `settings` (type-specific).
     "btn_text": "Learn more",
     "btn_url": "#",
     "layout": "top",
+    "action_icon": "arrow-right",
     "radius": 12,
     "shadow": true,
     "color": "primary"
   }
 }
 ```
-- `layout`: `"top"` (image above) or `"left"` (image beside, 40% width)
+- `layout`: `"top"` (image above), `"left"` (image beside), or `"background"` (linked image background)
 - `badge`: optional floating label on the image (omit/empty = none)
 - `btn_text`/`btn_url`: optional button (omit btn_text = no button)
 

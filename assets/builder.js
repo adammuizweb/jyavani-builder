@@ -21,6 +21,8 @@
     pendingInsertAfter: null, // section id for next section insert
     uiIcons: {},              // inline SVG strings for JS chrome (from elements API)
     frameReady: false,
+    frameRefreshSeq: 0,
+    frameViewport: { x: 0, y: 0, anchorId: '', anchorTop: 0 },
     panelTab: 'content',
   };
 
@@ -215,27 +217,53 @@
   }
 
   // ───────────────────────── Frame ─────────────────────────
+  var frameRefreshTimer = null;
+
+  function captureFrameViewport() {
+    var frame = $('#jvbFrame');
+    if (!S.frameReady || !frame || !frame.contentWindow) return;
+    try {
+      var win = frame.contentWindow;
+      var anchorId = S.selected && S.selected.id ? S.selected.id : '';
+      var anchor = anchorId ? win.document.querySelector('[data-jvb="' + anchorId.replace(/"/g, '') + '"]') : null;
+      S.frameViewport = {
+        x: win.scrollX || 0,
+        y: win.scrollY || 0,
+        anchorId: anchor ? anchorId : '',
+        anchorTop: anchor ? anchor.getBoundingClientRect().top : 0,
+      };
+    } catch (e) {}
+  }
+
   function refreshFrame() {
-    S.frameReady = false;
-    var framePostId = S.postId;
-    api('frame_stash', {
-      layout: S.layout,
-      post_id: framePostId,
-      post_type: (S._pendingPostSettings && S._pendingPostSettings.type) || S.post.type || 'theme',
-    }).then(function (res) {
-      if (!res.success) { toast('Frame error', true); return; }
-      var frameUrl = new URL(boot.frameUrl, window.location.origin);
-      frameUrl.searchParams.set('post_id', String(framePostId));
-      frameUrl.searchParams.set('preview_key', res.key);
-      frameUrl.searchParams.set('_', String(Date.now()));
-      $('#jvbFrame').src = frameUrl.pathname + frameUrl.search;
-    });
+    captureFrameViewport();
+    var refreshSeq = ++S.frameRefreshSeq;
+    if (frameRefreshTimer) clearTimeout(frameRefreshTimer);
+    frameRefreshTimer = setTimeout(function () {
+      frameRefreshTimer = null;
+      S.frameReady = false;
+      var framePostId = S.postId;
+      api('frame_stash', {
+        layout: S.layout,
+        post_id: framePostId,
+        post_type: (S._pendingPostSettings && S._pendingPostSettings.type) || S.post.type || 'theme',
+      }).then(function (res) {
+        if (refreshSeq !== S.frameRefreshSeq) return;
+        if (!res.success) { toast('Frame error', true); return; }
+        var frameUrl = new URL(boot.frameUrl, window.location.origin);
+        frameUrl.searchParams.set('post_id', String(framePostId));
+        frameUrl.searchParams.set('preview_key', res.key);
+        frameUrl.searchParams.set('_', String(Date.now()));
+        $('#jvbFrame').src = frameUrl.pathname + frameUrl.search;
+      });
+    }, 120);
   }
 
   function onFrameReady() {
     S.frameReady = true;
+    framePost(Object.assign({ t: 'restore-viewport' }, S.frameViewport));
     if (S.selected) {
-      framePost({ t: 'highlight', id: S.selected.id });
+      framePost({ t: 'highlight', id: S.selected.id, scroll: false });
     }
   }
 
@@ -606,6 +634,9 @@
   FR.number = function (field, node) {
     var inp = document.createElement('input');
     inp.type = 'number';
+    if (field.min != null) inp.min = field.min;
+    if (field.max != null) inp.max = field.max;
+    if (field.step != null) inp.step = field.step;
     var v = (node.settings || {})[field.key];
     inp.value = v == null ? '' : v;
     inp.addEventListener('input', function () {
@@ -749,15 +780,22 @@
     var grid = document.createElement('div');
     grid.className = 'jvb-spacing-grid';
     var unit = val.unit || 'px';
+    var allowAuto = field.allow_auto === true || field.key === 'margin';
     [['t', 'Top'], ['r', 'Right'], ['b', 'Bottom'], ['l', 'Left']].forEach(function (side) {
       var inp = document.createElement('input');
-      inp.type = 'number';
-      inp.placeholder = side[1];
-      inp.title = side[1];
+      inp.type = allowAuto ? 'text' : 'number';
+      if (allowAuto) inp.inputMode = 'decimal';
+      inp.placeholder = side[1] + (allowAuto ? ' (number or auto)' : '');
+      inp.title = side[1] + (allowAuto ? ': enter a number or auto' : '');
       inp.value = val[side[0]] != null ? val[side[0]] : '';
       inp.addEventListener('input', function () {
+        var raw = inp.value.trim().toLowerCase();
+        var validAuto = allowAuto && raw === 'auto';
+        var validNumber = /^[-+]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(raw);
+        inp.setCustomValidity(raw === '' || validAuto || validNumber ? '' : (allowAuto ? 'Enter a number or auto' : 'Enter a number'));
+        if (raw !== '' && !validAuto && !validNumber) return;
         var next = Object.assign({}, (node.settings || {})[field.key] && (node.settings || {})[field.key][dev || 'd'] || val);
-        next[side[0]] = inp.value === '' ? '' : +inp.value;
+        next[side[0]] = raw === '' ? '' : (validAuto ? 'auto' : +raw);
         next.unit = next.unit || unit;
         commit(next);
       });
@@ -1041,7 +1079,24 @@
           e.stopPropagation();
           pushUndo(); items.splice(i, 1); persist(); draw();
         });
-        head.appendChild(title); head.appendChild(rm);
+        var actions = document.createElement('div');
+        actions.style.cssText = 'display:flex;align-items:center;gap:2px';
+        var up = document.createElement('button');
+        up.type = 'button'; up.innerHTML = '&uarr;'; up.title = 'Move up'; up.className = 'jvb-ic-btn'; up.disabled = i === 0;
+        up.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (i === 0) return;
+          pushUndo(); items.splice(i - 1, 0, items.splice(i, 1)[0]); persist(); draw();
+        });
+        var down = document.createElement('button');
+        down.type = 'button'; down.innerHTML = '&darr;'; down.title = 'Move down'; down.className = 'jvb-ic-btn'; down.disabled = i === items.length - 1;
+        down.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (i === items.length - 1) return;
+          pushUndo(); items.splice(i + 1, 0, items.splice(i, 1)[0]); persist(); draw();
+        });
+        actions.appendChild(up); actions.appendChild(down); actions.appendChild(rm);
+        head.appendChild(title); head.appendChild(actions);
         var body = document.createElement('div');
         body.className = 'jvb-repeater__body'; body.hidden = true;
         (field.fields || []).forEach(function (sub) {
@@ -1157,6 +1212,14 @@
     return wrap;
   };
 
+  function settingsMatch(node, conditions) {
+    var s = node.settings || {};
+    return Object.keys(conditions || {}).every(function (k) {
+      var expected = conditions[k];
+      return Array.isArray(expected) ? expected.indexOf(s[k] == null ? '' : s[k]) !== -1 : s[k] == expected;
+    });
+  }
+
   function renderField(field, node) {
     var input;
     if (field.devices) {
@@ -1170,12 +1233,71 @@
     }
     var label = field.type === 'toggle' ? null : field.label;
     var el = fieldWrap(label, input);
-    if (field.show_if) {
-      var s = node.settings || {};
-      var ok = Object.keys(field.show_if).every(function (k) { return s[k] == field.show_if[k]; });
-      if (!ok) el.style.display = 'none';
-    }
+    if (field.show_if && !settingsMatch(node, field.show_if)) el.style.display = 'none';
     return el;
+  }
+
+  function styleAccordion(title, node, fields, open) {
+    var details = document.createElement('details');
+    details.className = 'jvb-style-accordion';
+    details.open = open !== false;
+    var summary = document.createElement('summary');
+    summary.textContent = title;
+    details.appendChild(summary);
+    var body = document.createElement('div');
+    body.className = 'jvb-style-accordion__body';
+    fields.forEach(function (field) { body.appendChild(renderField(field, node)); });
+    details.appendChild(body);
+    return details;
+  }
+
+  function renderElementStylePanel(node) {
+    var def = S.registry[node.type] || {};
+    if ((def.style_fields || []).length && settingsMatch(node, def.style_show_if)) {
+      panelBody.appendChild(styleAccordion(def.style_label || 'Element Style', node, def.style_fields, true));
+    }
+    var layoutFields = [
+      { key: 'align', label: 'Text Align', type: 'align', devices: true },
+      { key: 'width_pct', label: 'Width (%)', type: 'slider', min: 5, max: 100, unit: '%', devices: true },
+      { key: 'max_width', label: 'Max Width (for example 42rem or 18ch)', type: 'text', devices: true },
+      { key: 'margin', label: 'Margin', type: 'spacing4', devices: true },
+      { key: 'padding', label: 'Padding', type: 'spacing4', devices: true }
+    ];
+    if (node.type === 'divider') layoutFields = layoutFields.filter(function (field) { return field.key !== 'width_pct'; });
+    panelBody.appendChild(styleAccordion('Layout & Spacing', node, layoutFields, true));
+    panelBody.appendChild(styleAccordion('Background & Border', node, [
+      { key: 'bg_color', label: 'Background', type: 'color' },
+      { key: 'border_color', label: 'Border Color', type: 'color' },
+      { key: 'border_width', label: 'Border Width', type: 'spacing4', devices: true },
+      { key: 'border_style', label: 'Border Style', type: 'select', options: { '': 'None', solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted', double: 'Double' } },
+      { key: 'border_radius', label: 'Radius', type: 'text' },
+      { key: 'box_shadow', label: 'Shadow', type: 'select', options: { '': 'None', small: 'Small', medium: 'Medium', large: 'Large' } }
+    ], false));
+    panelBody.appendChild(styleAccordion('Typography', node, [
+      { key: 'color', label: 'Text Color', type: 'color' },
+      { key: 'typography', label: 'Typography', type: 'typography', devices: true }
+    ], false));
+    panelBody.appendChild(styleAccordion('Motion', node, [
+      { key: 'opacity', label: 'Opacity', type: 'slider', min: 0, max: 1, unit: '' },
+      { key: 'animation', label: 'Entrance Animation', type: 'select', options: { '': 'None', fade: 'Fade', 'fade-up': 'Fade Up', 'fade-down': 'Fade Down', 'fade-left': 'Fade Left', 'fade-right': 'Fade Right', 'zoom-in': 'Zoom In', 'flip-up': 'Flip Up' } },
+      { key: 'anim_delay', label: 'Animation Delay (ms)', type: 'number' }
+    ], false));
+  }
+
+  function renderElementAdvancedPanel(node) {
+    panelBody.appendChild(styleAccordion('Targeting', node, [
+      { key: 'class', label: 'CSS Class', type: 'text' },
+      { key: 'css_id', label: 'CSS ID (anchor)', type: 'text' }
+    ], true));
+    if (node.type === 'button') {
+      panelBody.appendChild(styleAccordion('Button Target', node, [
+        { key: 'css_class', label: 'Button CSS class', type: 'text' }
+      ], false));
+    }
+    panelBody.appendChild(styleAccordion('Custom CSS', node, [
+      { key: 'custom_css', label: 'CSS declarations', type: 'textarea' }
+    ], false));
+    panelBody.appendChild(renderHideOn(node));
   }
 
   function renderElementPanel(node) {
@@ -1191,14 +1313,9 @@
         panelBody.innerHTML = '<p class="jvb-panel__hint">No settings for this element.</p>';
       }
     } else if (S.panelTab === 'style') {
-      panelBody.appendChild(renderField({ key: 'bg_color', label: 'Background', type: 'color' }, node));
-      panelBody.appendChild(renderField({ key: 'padding', label: 'Padding', type: 'spacing4', devices: true }, node));
-      panelBody.appendChild(renderField({ key: 'animation', label: 'Entrance Animation', type: 'select', options: { '': 'None', 'fade': 'Fade', 'fade-up': 'Fade Up', 'fade-down': 'Fade Down', 'fade-left': 'Fade Left', 'fade-right': 'Fade Right', 'zoom-in': 'Zoom In', 'flip-up': 'Flip Up' } }, node));
-      panelBody.appendChild(renderField({ key: 'anim_delay', label: 'Animation Delay (ms)', type: 'number' }, node));
+      renderElementStylePanel(node);
     } else {
-      panelBody.appendChild(renderField({ key: 'class', label: 'CSS Class', type: 'text' }, node));
-      panelBody.appendChild(renderField({ key: 'css_id', label: 'CSS ID (anchor)', type: 'text' }, node));
-      panelBody.appendChild(renderHideOn(node));
+      renderElementAdvancedPanel(node);
     }
 
     // quick actions
@@ -1286,7 +1403,9 @@
       panelBody.appendChild(renderField({ key: 'width', label: 'Custom width (%)', type: 'slider', min: 5, max: 100, unit: '%', devices: true }, node));
     } else if (S.panelTab === 'style') {
       panelBody.appendChild(renderField({ key: 'bg_color', label: 'Background', type: 'color' }, node));
+      panelBody.appendChild(renderField({ key: 'max_width', label: 'Max Width (for example 64rem or 100%)', type: 'text', devices: true }, node));
       panelBody.appendChild(renderField({ key: 'padding', label: 'Padding', type: 'spacing4', devices: true }, node));
+      panelBody.appendChild(renderField({ key: 'margin', label: 'Margin', type: 'spacing4', devices: true, allow_auto: true }, node));
       panelBody.appendChild(renderField({ key: 'align', label: 'Text Align', type: 'align', devices: true }, node));
       panelBody.appendChild(renderField({ key: 'valign', label: 'Vertical Align', type: 'select', options: { '': 'Top', 'center': 'Middle', 'end': 'Bottom', 'space-between': 'Space Between' } }, node));
     } else {
@@ -1311,8 +1430,9 @@
       panelBody.appendChild(renderField({ key: 'wrap', label: 'Wrap on mobile', type: 'select', options: { '': 'No wrap', 'wrap': 'Wrap columns' } }, node));
     } else if (S.panelTab === 'style') {
       panelBody.appendChild(renderField({ key: 'bg_color', label: 'Background', type: 'color' }, node));
+      panelBody.appendChild(renderField({ key: 'max_width', label: 'Max Width (for example 64rem or 100%)', type: 'text', devices: true }, node));
       panelBody.appendChild(renderField({ key: 'padding', label: 'Padding', type: 'spacing4', devices: true }, node));
-      panelBody.appendChild(renderField({ key: 'margin', label: 'Margin', type: 'spacing4', devices: true }, node));
+      panelBody.appendChild(renderField({ key: 'margin', label: 'Margin', type: 'spacing4', devices: true, allow_auto: true }, node));
     } else {
       panelBody.appendChild(renderField({ key: 'class', label: 'CSS Class', type: 'text' }, node));
       panelBody.appendChild(renderField({ key: 'css_id', label: 'CSS ID (anchor)', type: 'text' }, node));
@@ -1373,18 +1493,37 @@
       t3.className = 'jvb-panel__section-title'; t3.textContent = 'Spacing & Motion';
       panelBody.appendChild(t3);
       panelBody.appendChild(renderField({ key: 'padding', label: 'Content Padding (set 0 for edge-to-edge)', type: 'spacing4', devices: true }, node));
-      panelBody.appendChild(renderField({ key: 'animation', label: 'Entrance Animation', type: 'select', options: { '': 'None', 'fade': 'Fade', 'fade-up': 'Fade Up', 'fade-down': 'Fade Down', 'fade-left': 'Fade Left', 'fade-right': 'Fade Right', 'zoom-in': 'Zoom In', 'flip-up': 'Flip Up' } }, node));
+       panelBody.appendChild(renderField({ key: 'animation', label: 'Entrance Animation', type: 'select', options: { '': 'None', 'fade': 'Fade', 'fade-up': 'Fade Up', 'fade-down': 'Fade Down', 'fade-left': 'Fade Left', 'fade-right': 'Fade Right', 'zoom-in': 'Zoom In', 'flip-up': 'Flip Up' } }, node));
+      var t5 = document.createElement('div');
+      t5.className = 'jvb-panel__section-title'; t5.textContent = 'Typography & Alignment';
+      panelBody.appendChild(t5);
+      panelBody.appendChild(renderField({ key: 'color', label: 'Text Color', type: 'color' }, node));
+      panelBody.appendChild(renderField({ key: 'align', label: 'Text Align', type: 'align', devices: true }, node));
+      panelBody.appendChild(renderField({ key: 'typography', label: 'Typography', type: 'typography', devices: true }, node));
+
+      var t6 = document.createElement('div');
+      t6.className = 'jvb-panel__section-title'; t6.textContent = 'Border & Depth';
+      panelBody.appendChild(t6);
+      panelBody.appendChild(renderField({ key: 'border_color', label: 'Border Color', type: 'color' }, node));
+      panelBody.appendChild(renderField({ key: 'border_width', label: 'Border Width', type: 'spacing4', devices: true }, node));
+      panelBody.appendChild(renderField({ key: 'border_style', label: 'Border Style', type: 'select', options: { '': 'None', solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted', double: 'Double' } }, node));
+      panelBody.appendChild(renderField({ key: 'border_radius', label: 'Corner Radius', type: 'text' }, node));
+      panelBody.appendChild(renderField({ key: 'box_shadow', label: 'Box Shadow', type: 'select', options: { '': 'None', small: 'Small', medium: 'Medium', large: 'Large' } }, node));
+      panelBody.appendChild(renderField({ key: 'opacity', label: 'Opacity', type: 'slider', min: 0, max: 1, unit: '' }, node));
+      panelBody.appendChild(renderField({ key: 'overflow', label: 'Overflow', type: 'select', options: { '': 'Visible', hidden: 'Hidden', clip: 'Clip', auto: 'Auto' } }, node));
 
       var t4 = document.createElement('div');
       t4.className = 'jvb-panel__section-title'; t4.textContent = 'Shape Dividers';
       panelBody.appendChild(t4);
       var shapes = { none: 'None', wave: 'Wave', tilt: 'Tilt', curve: 'Curve', triangle: 'Triangle', zigzag: 'Zigzag' };
-      panelBody.appendChild(renderShapeField(node, 'shape_top', 'Top Shape', shapes));
-      panelBody.appendChild(renderShapeField(node, 'shape_bottom', 'Bottom Shape', shapes));
-    } else {
-      panelBody.appendChild(renderField({ key: 'class', label: 'CSS Class', type: 'text' }, node));
-      panelBody.appendChild(renderField({ key: 'css_id', label: 'CSS ID (anchor)', type: 'text' }, node));
-      panelBody.appendChild(renderHideOn(node));
+       panelBody.appendChild(renderShapeField(node, 'shape_top', 'Top Shape', shapes));
+       panelBody.appendChild(renderShapeField(node, 'shape_bottom', 'Bottom Shape', shapes));
+     } else {
+       panelBody.appendChild(renderField({ key: 'class', label: 'CSS Class', type: 'text' }, node));
+       panelBody.appendChild(renderField({ key: 'css_id', label: 'CSS ID (anchor)', type: 'text' }, node));
+       panelBody.appendChild(renderField({ key: 'aria_labelledby', label: 'ARIA labelled by ID', type: 'text' }, node));
+       panelBody.appendChild(renderField({ key: 'custom_css', label: 'CSS declarations', type: 'textarea' }, node));
+       panelBody.appendChild(renderHideOn(node));
     }
 
     var actions = document.createElement('div');
@@ -1421,10 +1560,17 @@
       var color = document.createElement('input'); color.type = 'text'; color.placeholder = 'Color (token/hex)'; color.value = s.color || '';
       color.addEventListener('input', function () { commitShape({ color: color.value }); });
       var height = document.createElement('input'); height.type = 'number'; height.placeholder = 'Height px'; height.value = s.height || '';
-      height.addEventListener('input', function () { commitShape({ height: height.value === '' ? '' : +height.value }); });
-      row.appendChild(color); row.appendChild(height);
-      wrap.appendChild(row);
-    }
+       height.addEventListener('input', function () { commitShape({ height: height.value === '' ? '' : +height.value }); });
+       row.appendChild(color); row.appendChild(height);
+       wrap.appendChild(row);
+      var flipLabel = document.createElement('label');
+      flipLabel.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:#64748b';
+      var flip = document.createElement('input');
+      flip.type = 'checkbox'; flip.checked = !!s.flip;
+      flip.addEventListener('change', function () { commitShape({ flip: flip.checked }); });
+      flipLabel.appendChild(flip); flipLabel.appendChild(document.createTextNode('Flip shape'));
+      wrap.appendChild(flipLabel);
+     }
     return wrap;
   }
 
@@ -1883,6 +2029,7 @@
     var groups = {};
     Object.keys(S.registry).forEach(function (type) {
       var def = S.registry[type];
+      if (def.palette === false) return;
       var g = def.group || 'other';
       if (!groups[g]) groups[g] = [];
       groups[g].push(type);

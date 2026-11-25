@@ -32,6 +32,15 @@ html.jvb-frame-document .jvb-row[data-jvb] > .jvb-col[data-jvb] {
   flex: 1 1 0;
   min-width: 0;
 }
+/* Canvas nodes must size from their content; public theme shells must not clip
+   the editor because they supply fixed heights or overflow rules. */
+html.jvb-frame-document .jvb-section[data-jvb],
+html.jvb-frame-document .jvb-row[data-jvb],
+html.jvb-frame-document .jvb-col[data-jvb] {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
 /* Device buttons describe the preview mode. Do not let the iframe's narrow
    workspace width activate the public mobile column rule in desktop mode. */
 html.jvb-frame-document body.jvb-frame--desktop .jvb-row[data-jvb] > .jvb-col[data-jvb] {
@@ -62,8 +71,16 @@ html.jvb-frame-document body.jvb-frame--desktop .jvb-row[data-jvb] {
   position: absolute; top: 0; left: 0; z-index: 50;
   font: 600 10px/1.4 system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase;
   padding: 2px 6px; color: #fff; background: #94a3b8;
-  border-radius: 0 0 4px 0; pointer-events: none; display: none;
+  border: 0; border-radius: 0 0 4px 0; cursor: pointer;
+  pointer-events: auto !important; display: none; white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(15,23,42,.24);
 }
+.jvb-section[data-jvb] > .jvb-chip { left: 0; z-index: 50; }
+.jvb-row[data-jvb] > .jvb-chip { left: 58px; z-index: 51; }
+.jvb-col[data-jvb] > .jvb-chip { left: 100px; z-index: 52; }
+.jvb-el[data-jvb] > .jvb-chip { left: 160px; z-index: 53; }
+.jvb-chip:hover, .jvb-chip:focus-visible { filter: brightness(.9); }
+.jvb-chip:focus-visible { outline: 3px solid rgba(255,255,255,.92); outline-offset: 2px; }
 .jvb-section[data-jvb]:hover > .jvb-chip { display: block; background: #3b82f6; }
 .jvb-col[data-jvb]:hover > .jvb-chip { display: block; background: #22c55e; }
 .jvb-el[data-jvb]:hover > .jvb-chip { display: block; background: #f97316; }
@@ -239,6 +256,9 @@ button.jvb-insert-sec { pointer-events:auto; }
 .jvb-flash { animation: jvb-flash .8s ease; }
 
 @media (max-width: 767px) {
+  .jvb-row[data-jvb] > .jvb-chip { left: 52px; }
+  .jvb-col[data-jvb] > .jvb-chip { left: 92px; }
+  .jvb-el[data-jvb] > .jvb-chip { left: 148px; }
   .jvb-sec-tools button { width:34px; height:34px; }
   .jvb-row-tools button, .jvb-col-tools button { width:32px; height:32px; }
   .jvb-row-spot { min-height:30px; opacity:.72; }

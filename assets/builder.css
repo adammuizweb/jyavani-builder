@@ -210,6 +210,12 @@
 .jvb-panel__tabs button.is-active { border-color:#d8d2ff; color:var(--jvb-brand-strong); background:var(--jvb-brand-soft); }
 .jvb-panel__body { flex: 1; overflow-y: auto; padding: 12px 14px 40px; }
 .jvb-panel__hint { color: #94a3b8; font-size: 12.5px; text-align: center; margin-top: 40px; }
+.jvb-style-accordion { margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 9px; background: #f8fafc; overflow: hidden; }
+.jvb-style-accordion > summary { padding: 9px 11px; color: #334155; cursor: pointer; font-size: 11.5px; font-weight: 700; list-style: none; }
+.jvb-style-accordion > summary::-webkit-details-marker { display: none; }
+.jvb-style-accordion > summary::after { float: right; width: 7px; height: 7px; margin-top: 2px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; content: ''; transform: rotate(45deg); }
+.jvb-style-accordion[open] > summary::after { margin-top: 5px; transform: rotate(225deg); }
+.jvb-style-accordion__body { padding: 9px 10px 2px; border-top: 1px solid #e2e8f0; background: #fff; }
 
 /* ---------- Panel fields ---------- */
 .jvb-f { margin-bottom: 14px; }

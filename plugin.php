@@ -1,11 +1,11 @@
 <?php
-// /plugins/jyavani-builder/plugin.php — Jy Builder v3.4.0
+// /plugins/jyavani-builder/plugin.php — Jy Builder v3.4.1
 declare(strict_types=1);
 
 // Loaded on every request (admin + frontend) via plugin_load_active(). No context guard here —
 // guards belong in the admin page files.
 
-const JVB_VERSION = '3.4.0';
+const JVB_VERSION = '3.4.1';
 const JVB_LAYOUT_VERSION = 2;
 const JVB_SETTINGS_TOKENS_KEY = 'jvb_design_tokens';
 const JVB_DYNAMIC_ACCESS_MIGRATED_KEY = 'jvb_dynamic_access_migrated';
@@ -727,11 +727,184 @@ function jvb_home_post_id(PDO $pdo): ?int {
     return $st->fetchColumn() ? $id : null;
 }
 
+/**
+ * Resolve the Builder target for the Core homepage slot.
+ *
+ * Core assignments remain authoritative. Invalid or unpublished custom Theme
+ * Content assignments are blocked rather than falling back to draft content.
+ */
+function jvb_home_builder_source_target(PDO $pdo): array {
+    $hasAssignment = false;
+    if (function_exists('get_assignment')) {
+        try {
+            $hasAssignment = is_array(get_assignment($pdo, 'main.homepage'));
+        } catch (Throwable $error) {
+            error_log('[jyavani-builder] Homepage assignment lookup failed: ' . $error->getMessage());
+            return ['state' => 'blocked', 'post_id' => null];
+        }
+    }
+
+    if (function_exists('resolve_template')) {
+        try {
+            $resolved = resolve_template($pdo, 'main.homepage');
+            if (is_array($resolved) && ($resolved['type'] ?? '') === 'custom_post') {
+                $post = $resolved['post'] ?? null;
+                if (!is_array($post)
+                    || (int)($post['id'] ?? 0) <= 0
+                    || ($post['type'] ?? '') !== 'theme'
+                    || (int)($post['is_deleted'] ?? 0) !== 0
+                    || ($post['status'] ?? '') !== 'published') {
+                    return ['state' => 'blocked', 'post_id' => null];
+                }
+                return ['state' => 'assigned', 'post_id' => (int)$post['id']];
+            }
+            if ($hasAssignment) return ['state' => 'core', 'post_id' => null];
+        } catch (Throwable $error) {
+            error_log('[jyavani-builder] Homepage assignment resolution failed: ' . $error->getMessage());
+            return ['state' => 'blocked', 'post_id' => null];
+        }
+    }
+
+    if ($hasAssignment) return ['state' => 'core', 'post_id' => null];
+    $fallback = jvb_home_post_id($pdo);
+    return ['state' => $fallback !== null ? 'fallback' : 'none', 'post_id' => $fallback];
+}
+
+function jvb_home_locale_code(mixed $locale): ?string {
+    $locale = trim((string)$locale);
+    return preg_match('/\A[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})?\z/', $locale) === 1 ? $locale : null;
+}
+
+function jvb_home_locale_targets(PDO $pdo, int $sourcePostId): array {
+    if ($sourcePostId < 1) return [];
+    try {
+        $stmt = $pdo->prepare("SELECT h.locale, h.localized_post_id
+            FROM jvb_home_locales h
+            INNER JOIN posts p ON p.id = h.localized_post_id
+            INNER JOIN jvb_layouts l ON l.post_id = h.localized_post_id
+            WHERE h.source_post_id = ? AND p.type = 'theme' AND p.status = 'published'
+              AND p.is_deleted = 0 AND l.status = 'published'
+              AND l.published_json IS NOT NULL AND l.published_json != ''
+            ORDER BY h.locale ASC");
+        $stmt->execute([$sourcePostId]);
+        $targets = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $locale = jvb_home_locale_code($row['locale'] ?? null);
+            $postId = (int)($row['localized_post_id'] ?? 0);
+            if ($locale !== null && $postId > 0) $targets[$locale] = $postId;
+        }
+        return $targets;
+    } catch (PDOException $error) {
+        $message = strtolower($error->getMessage());
+        if ((string)$error->getCode() === '42S02' || str_contains($message, 'no such table')) return [];
+        throw $error;
+    }
+}
+
+function jvb_set_home_locale_target(PDO $pdo, int $sourcePostId, string $locale, int $localizedPostId): bool {
+    $locale = jvb_home_locale_code($locale);
+    $default = function_exists('content_default_locale') ? content_default_locale() : 'en';
+    if ($locale === null || $locale === $default || $sourcePostId < 1 || $localizedPostId < 1 || $sourcePostId === $localizedPostId) return false;
+
+    $stmt = $pdo->prepare("SELECT p.id
+        FROM posts p
+        INNER JOIN jvb_layouts l ON l.post_id = p.id
+        WHERE p.id IN (?, ?) AND p.type = 'theme' AND p.is_deleted = 0
+        GROUP BY p.id");
+    $stmt->execute([$sourcePostId, $localizedPostId]);
+    $postIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    sort($postIds, SORT_NUMERIC);
+    $expected = [$sourcePostId, $localizedPostId];
+    sort($expected, SORT_NUMERIC);
+    if ($postIds !== $expected) return false;
+
+    $stmt = $pdo->prepare('SELECT localized_post_id FROM jvb_home_locales WHERE source_post_id = ? AND locale = ? LIMIT 1');
+    $stmt->execute([$sourcePostId, $locale]);
+    if ($stmt->fetchColumn() !== false) {
+        $stmt = $pdo->prepare('UPDATE jvb_home_locales SET localized_post_id = ?, updated_at = CURRENT_TIMESTAMP WHERE source_post_id = ? AND locale = ?');
+        return $stmt->execute([$localizedPostId, $sourcePostId, $locale]);
+    }
+    $stmt = $pdo->prepare('INSERT INTO jvb_home_locales (source_post_id, locale, localized_post_id) VALUES (?, ?, ?)');
+    return $stmt->execute([$sourcePostId, $locale, $localizedPostId]);
+}
+
+function jvb_remove_home_locale_target(PDO $pdo, int $sourcePostId, string $locale): bool {
+    $locale = jvb_home_locale_code($locale);
+    if ($locale === null || $sourcePostId < 1) return false;
+    $stmt = $pdo->prepare('DELETE FROM jvb_home_locales WHERE source_post_id = ? AND locale = ?');
+    return $stmt->execute([$sourcePostId, $locale]);
+}
+
+function jvb_home_request_locale(): ?string {
+    $locale = $GLOBALS['_jvb_home_locale'] ?? $GLOBALS['ct_request_locale'] ?? null;
+    $locale = jvb_home_locale_code($locale);
+    $default = function_exists('content_default_locale') ? content_default_locale() : 'en';
+    return $locale !== null && $locale !== $default ? $locale : null;
+}
+
+function jvb_home_builder_target(PDO $pdo): array {
+    $source = jvb_home_builder_source_target($pdo);
+    $sourcePostId = (int)($source['post_id'] ?? 0);
+    $locale = jvb_home_request_locale();
+    if ($locale === null || $sourcePostId < 1) return $source;
+
+    $localizedPostId = jvb_home_locale_targets($pdo, $sourcePostId)[$locale] ?? null;
+    if ($localizedPostId === null) return ['state' => 'blocked', 'post_id' => null];
+    return [
+        'state' => 'localized',
+        'post_id' => $localizedPostId,
+        'source_post_id' => $sourcePostId,
+        'locale' => $locale,
+    ];
+}
+
+function jvb_homepage_available_locales(PDO $pdo): array {
+    $source = jvb_home_builder_source_target($pdo);
+    $sourcePostId = (int)($source['post_id'] ?? 0);
+    $default = function_exists('content_default_locale') ? content_default_locale() : 'en';
+    return array_values(array_unique(array_merge(
+        [$default],
+        $sourcePostId > 0 ? array_keys(jvb_home_locale_targets($pdo, $sourcePostId)) : []
+    )));
+}
+
+function jvb_is_homepage_request_path(PDO $pdo, string $path): bool {
+    $path = trim($path, '/');
+    if ($path === '') return true;
+    if (str_contains($path, '/')) return false;
+    $source = jvb_home_builder_source_target($pdo);
+    $sourcePostId = (int)($source['post_id'] ?? 0);
+    return $sourcePostId > 0 && isset(jvb_home_locale_targets($pdo, $sourcePostId)[$path]);
+}
+
+add_filter('router_path', function ($path) {
+    $path = trim((string)$path, '/');
+    if ($path === '' || str_contains($path, '/')) return $path;
+    $pdo = $GLOBALS['pdo'] ?? null;
+    if (!($pdo instanceof PDO)) return $path;
+
+    $source = jvb_home_builder_source_target($pdo);
+    $sourcePostId = (int)($source['post_id'] ?? 0);
+    if ($sourcePostId < 1 || !isset(jvb_home_locale_targets($pdo, $sourcePostId)[$path])) return $path;
+
+    $GLOBALS['_jvb_home_locale'] = $path;
+    $GLOBALS['ct_request_locale'] = $path;
+    $GLOBALS['ct_localized_homepage'] = true;
+    if (function_exists('set_locale')) set_locale($path);
+    return '';
+}, 5);
+
+add_filter('homepage_available_locales', function ($locales, $pdo) {
+    return $pdo instanceof PDO ? jvb_homepage_available_locales($pdo) : $locales;
+}, 10, 2);
+
 add_filter('layout_slot_html', function (string $html, string $slot = '', array $context = []): string {
     if ($slot !== 'main.homepage') return $html;
     $pdo = $GLOBALS['pdo'] ?? null;
     if (!($pdo instanceof PDO)) return $html;
-    $postId = jvb_home_post_id($pdo);
+    $target = jvb_home_builder_target($pdo);
+    if (($target['state'] ?? '') === 'blocked') return $html;
+    $postId = $target['post_id'] ?? null;
     if ($postId === null) return $html;
 
     $which = 'published';
@@ -768,8 +941,9 @@ add_action('jy_head', function (): void {
 
     $need = false;
     $path = trim((string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/'), '/');
-    if ($path === '') {
-        $need = jvb_home_post_id($pdo) !== null;
+    if (jvb_is_homepage_request_path($pdo, $path)) {
+        $homeTarget = jvb_home_builder_target($pdo);
+        $need = ($homeTarget['post_id'] ?? null) !== null && ($homeTarget['state'] ?? '') !== 'blocked';
     } else {
         $slug = basename($path);
         try {
@@ -780,7 +954,20 @@ add_action('jy_head', function (): void {
     }
     if (!$need && isset($_GET['jvb_preview'])) $need = true;
     if (!$need) return;
+    $GLOBALS['_jvb_base_stylesheet_linked'] = true;
     echo '<link rel="stylesheet" href="' . jvb_asset_url('frontend.css') . '">' . "\n";
+});
+
+add_action('jy_head', function (): void {
+    $pdo = $GLOBALS['pdo'] ?? null;
+    if (!($pdo instanceof PDO)) return;
+    $path = (string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
+    if (!jvb_is_homepage_request_path($pdo, $path) || trim((string)($_GET['s'] ?? '')) !== '') return;
+    foreach (jvb_homepage_available_locales($pdo) as $locale) {
+        $url = function_exists('localized_home_url') ? localized_home_url('/', $locale) : ($locale === 'en' ? '/' : '/' . rawurlencode($locale) . '/');
+        echo '<link rel="alternate" hreflang="' . htmlspecialchars($locale, ENT_QUOTES, 'UTF-8') . '" href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">' . "\n";
+    }
+    echo '<link rel="alternate" hreflang="x-default" href="/">' . "\n";
 });
 
 // Conditional frontend JS (animations, lightbox, countdown, tabs, accordion).
@@ -817,6 +1004,7 @@ add_action('plugin_uninstall', function (string $name): void {
     if ($name !== 'jyavani-builder') return;
     $pdo = $GLOBALS['pdo'] ?? null;
     if (!($pdo instanceof PDO)) return;
+    $pdo->exec('DROP TABLE IF EXISTS `jvb_home_locales`');
     $pdo->exec('DROP TABLE IF EXISTS `jvb_layouts`');
     $pdo->exec('DROP TABLE IF EXISTS `jvb_revisions`');
     $pdo->exec('DROP TABLE IF EXISTS `jvb_templates`');
@@ -900,3 +1088,19 @@ add_filter('post_list_title_after', function (string $html, array $post): string
     }
     return $html;
 }, 10, 2);
+
+// Keep Core content lists as a direct editorial entry point to Builder.
+add_filter('admin_content_row_actions', function (array $items, array $post, array $context, PDO $pdo): array {
+    if (!in_array((string)($post['type'] ?? ''), ['page', 'article', 'theme'], true)
+        || !defined('ADMIN_BASE_PATH')
+        || !jvb_current_user_can_edit_post($pdo, $post)) return $items;
+
+    $items[] = [
+        'key' => 'jyavani-builder',
+        'label' => function_exists('__') ? __('Builder') : 'Builder',
+        'url' => rtrim((string)ADMIN_BASE_PATH, '/') . '/?page=admin/tools/jyavani-builder&view=builder&post_id=' . (int)($post['id'] ?? 0),
+        'icon' => 'zap',
+        'title' => function_exists('__') ? __('Open this content in Jy Builder.') : 'Open this content in Jy Builder.',
+    ];
+    return $items;
+}, 10, 4);

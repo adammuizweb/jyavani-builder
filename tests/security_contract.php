@@ -21,7 +21,7 @@ try {
 $plugin = (string)file_get_contents($root . '/plugin.php');
 
 $check(($manifest['requires']['jyavani'] ?? null) === '>=2.3.160', 'manifest requires the public Content Preset rendering API');
-$check(($manifest['version'] ?? null) === '3.4.0' && str_contains($plugin, "const JVB_VERSION = '3.4.0'"), 'manifest and runtime declare the 3.4.0 candidate');
+$check(($manifest['version'] ?? null) === '3.4.1' && str_contains($plugin, "const JVB_VERSION = '3.4.1'"), 'manifest and runtime declare the 3.4.1 candidate');
 $permissionKeys = array_column($manifest['permissions'] ?? [], 'key');
 sort($permissionKeys);
 $expectedKeys = [
@@ -45,9 +45,12 @@ $index = (string)file_get_contents($root . '/admin/index.php');
 $adminUi = (string)file_get_contents($root . '/admin/_ui.php');
 $ajax = (string)file_get_contents($root . '/admin/ajax.php');
 $builder = (string)file_get_contents($root . '/admin/builder.php');
+$render = (string)file_get_contents($root . '/public/render.php');
 $builderJs = (string)file_get_contents($root . '/assets/builder.js');
 $frameJs = (string)file_get_contents($root . '/assets/frame.js');
 $frameCss = (string)file_get_contents($root . '/assets/frame.css');
+$frontendJs = (string)file_get_contents($root . '/assets/frontend.js');
+$frontendCss = (string)file_get_contents($root . '/assets/frontend.css');
 
 $check(str_contains($plugin, "if (!function_exists('csrf_check')) return false"), 'CSRF validation fails closed');
 $check(str_contains($plugin, 'jvb_current_user_can_edit_post'), 'Core editor integration intersects workspace and Core content permission');
@@ -56,6 +59,15 @@ $check(str_contains($plugin, "'core.' . \$resource . '.' . \$action"), 'content 
 $check(str_contains($plugin, 'core.pages.unfiltered_html') && str_contains($plugin, 'core.posts.unfiltered_html'), 'restricted elements use Core unfiltered HTML permissions');
 $check(str_contains($plugin, 'jvb_migrate_legacy_permissions'), 'legacy administrator action grants migrate once');
 $check(!str_contains($plugin, 'jvb_migrate_v1($pdo, $postId)'), 'public rendering performs no implicit layout migration');
+$check(str_contains($plugin, 'function jvb_home_locale_targets(')
+    && str_contains($plugin, 'function jvb_set_home_locale_target(')
+    && str_contains($plugin, 'function jvb_remove_home_locale_target(')
+    && str_contains($plugin, "add_filter('router_path'")
+    && str_contains($plugin, "add_filter('homepage_available_locales'")
+    && str_contains($plugin, "add_filter('admin_content_row_actions'")
+    && str_contains($plugin, "trim((string)(\$_GET['s'] ?? '')) !== ''")
+    && str_contains($render, "empty(\$GLOBALS['_jvb_base_stylesheet_linked'])"),
+    'Core Theme Content and localized homepages expose mapping APIs without tagging search results');
 $check(!str_contains($plugin, 'CREATE TABLE') && !str_contains($plugin, 'jvb_ensure_schema'), 'request bootstrap performs no schema migration');
 $check(str_contains($plugin, 'function jvb_layout_statuses(')
     && str_contains($plugin, 'SELECT post_id, status FROM jvb_layouts')
@@ -118,6 +130,37 @@ $check(str_contains($adminUi, '.jvba-stat > div > strong, .jvba-stat > div > spa
     && !str_contains($adminUi, '.jvba-stat strong, .jvba-stat span'),
     'overview card text styles do not override centered stat icons');
 $check(str_contains($builder, "'change_owner'") && str_contains($builder, '$canChangeOwner'), 'author selector requires both plugin elevation and Core change-owner permission');
+$check(str_contains($render, "'profile_quote'")
+    && str_contains($render, 'jvb-profile-quote__quote')
+    && !str_contains($render, 'fuel-home-leadership')
+    && str_contains($frontendCss, '.jvb-profile-quote'),
+    'Profile Quote is generic and contains no Fuel renderer');
+$check(str_contains($render, "'pills-card' => 'Pills + card'")
+    && str_contains($render, "'list_items'")
+    && str_contains($render, 'jvb-tabs__marker')
+    && str_contains($frontendJs, "event.key === 'ArrowRight'")
+    && str_contains($frontendCss, '.jvb-tabs--pills-card'),
+    'tabs support generic card presentation, structured lists, and keyboard navigation');
+$check(str_contains($render, "'content-slides' => 'Content slides'")
+    && str_contains($render, "'card-rail' => 'Card rail'")
+    && str_contains($render, 'function jvb_render_content_slider(')
+    && str_contains($render, 'function jvb_render_card_rail(')
+    && str_contains($builderJs, "title = 'Move up'")
+    && str_contains($frontendJs, 'function initContentSliders()')
+    && str_contains($frontendJs, 'function initCardRails()'),
+    'Carousel supports reorderable content sliders and card rails');
+$check(str_contains($render, "'background' => 'Image background'")
+    && str_contains($render, "'action_icon'")
+    && str_contains($render, 'jvb-card--background')
+    && str_contains($render, "'rail_title_color'")
+    && substr_count($render, "'title_color' => ''") === 1,
+    'cards expose generic linked backgrounds and Carousel color defaults are unambiguous');
+$check(str_contains($render, "\$prop === 'margin'")
+    && str_contains($render, "'border-' . \$name . '-width'")
+    && str_contains($render, "max-width:' . \$length")
+    && str_contains($builderJs, "field.key === 'margin'")
+    && str_contains($builderJs, "key: 'max_width'"),
+    'generic styling validates auto margins, max widths, and responsive border widths');
 
 $check(str_contains($ajax, "!== 'POST'") && str_contains($ajax, 'jvb_csrf_ok()'), 'JSON mutations require POST and CSRF');
 $check(str_contains($ajax, "jvb_require_content_action(\$pdo, \$uid, \$post, 'publish')"), 'publish and unpublish intersect Core publish permission');
@@ -134,6 +177,12 @@ $check(str_contains($builderJs, 'var frameUrl = new URL(boot.frameUrl, window.lo
     && str_contains($builderJs, "frameUrl.searchParams.set('post_id', String(framePostId))")
     && !str_contains($builderJs, "boot.frameUrl + '&preview_key='"),
     'frame preview uses the exact post identity bound to its stash request');
+$check(str_contains($builderJs, 'function captureFrameViewport()')
+    && str_contains($builderJs, 'refreshSeq !== S.frameRefreshSeq')
+    && str_contains($builderJs, "t: 'restore-viewport'")
+    && str_contains($frameJs, "msg.t === 'restore-viewport'")
+    && str_contains($frameJs, 'msg.scroll !== false'),
+    'frame refreshes preserve viewport position and ignore stale preview responses');
 $check(str_contains($ajax, "require \$layoutPath")
     && str_contains($ajax, "add_filter('layout_slot_html'")
     && str_contains($ajax, "add_action('jy_head'")
@@ -157,6 +206,10 @@ $check(str_contains($frameCss, 'body > :not(#site-main):not(script)')
     && str_contains($ajax, "document.addEventListener('click'")
     && str_contains($ajax, "document.addEventListener('submit'"),
     'public header and footer remain visible but muted and noninteractive in the canvas');
+$check(str_contains($frameJs, "document.createElement('button')")
+    && str_contains($frameCss, 'pointer-events: auto !important')
+    && str_contains($frameCss, '.jvb-row[data-jvb] > .jvb-chip { left: 58px;'),
+    'canvas hierarchy chips are keyboard-accessible and occupy separate click lanes');
 $check(str_contains($builderJs, "window.location.origin")
     && str_contains($builderJs, 'e.source !== frame.contentWindow')
     && str_contains($frameJs, "window.location.origin")
